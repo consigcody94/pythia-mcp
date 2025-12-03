@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output (keep dist for npm package)
+# dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# Temp files
+tmp/
+temp/
+*.tmp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+*.egg-info/
+.eggs/
+
+# Lilith temp files
+lilith/tmp_*.xml
+lilith/results/
