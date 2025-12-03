@@ -14,6 +14,17 @@
 
 ---
 
+## Built on Lilith
+
+> **This project is a wrapper around [Lilith-2](https://github.com/sabinekraml/Lilith-2)**, a powerful Python tool developed by **Sabine Kraml and collaborators** at LPSC Grenoble for constraining new physics from Higgs boson measurements. All physics calculations are performed by Lilith — Pythia simply provides an MCP interface to make Lilith accessible to AI assistants.
+>
+> **Original Lilith Repository**: https://github.com/sabinekraml/Lilith-2
+> **Our Fork**: https://github.com/consigcody94/Lilith-2
+>
+> If you find this useful, please **star the original Lilith repository** and cite the Lilith papers in your research!
+
+---
+
 ## Overview
 
 **Pythia** (named after the Oracle of Delphi in Greek mythology) is a Model Context Protocol (MCP) server that provides AI assistants with powerful tools for Higgs boson phenomenology. It interfaces with [Lilith](https://github.com/sabinekraml/Lilith-2), a comprehensive framework for constraining new physics scenarios using signal strength measurements from the ATLAS and CMS experiments at the Large Hadron Collider (LHC).
@@ -356,7 +367,11 @@ npm run dev  # Run in development mode
 
 ## Citations & Acknowledgments
 
-### Lilith
+### Lilith (Required Citation)
+
+**Pythia is built entirely on Lilith.** If you use this tool for your research, you **must** cite the original Lilith papers:
+
+**Primary Repository**: https://github.com/sabinekraml/Lilith-2
 
 If you use Pythia (which uses Lilith) for your research, please cite:
 
