@@ -37,7 +37,7 @@ ATLAS/Run2/36fb-1/HIGG-2016-29_ZH_bb_ps.xml
 ATLAS/Run2/36fb-1/HIGG-2016-30_VBF_bb_ps.xml
 
 ## ttH, H -> VV, tautau, bb
-ATLAS/Run2/36fb-1/HIGG-2017-02_ttH_combined_vn_dim3.xml 
+ATLAS/Run2/36fb-1/HIGG-2017-02_ttH_combined_vn_dim3.xml
 
 ## H -> invisible
 ATLAS/Run2/36fb-1/HIGG-2016-28_ZH_invisible_f.xml
@@ -47,12 +47,14 @@ ATLAS/Run2/36fb-1/HIGG-2018-54_VBF_invisible_f.xml
 #--- ATLAS Run2, 140 fb-1 --
 #---------------------------
 
-## H -> gamma gamma
-ATLAS/Run2/140fb-1/CONF-2019-025_ggH-VBF-VH-ttH_ZZ_vn_dim4.xml
+## H -> ZZ (full Run 2)
+ATLAS/Run2/140fb-1/HIGG-2018-28_ggH-VBF-VH-ttH_ZZ_vn_dim4_Table08.xml
 
 ## H -> mumu
-ATLAS/Run2/140fb-1/CONF-2019-028_mumu_s.xml
-ATLAS/Run2/140fb-1/CONF-2019-028_mumu_s.xml
+ATLAS/Run2/140fb-1/HIGG-2019-14_mumu_ps.xml
+
+## H -> bb (VH)
+ATLAS/Run2/140fb-1/HIGG-2018-51_WH-ZH_bb_vn68.xml
 
 #---------------------------
 #--- CMS Run2, 36 fb-1 ---
@@ -70,4 +72,17 @@ CMS/Run2/36fb-1/HIG-17-023_ggH_invisible_vs.xml
 CMS/Run2/36fb-1/HIG-17-023_qqH_invisible_f.xml
 CMS/Run2/36fb-1/HIG-17-023_VqqH_invisible_vs.xml
 CMS/Run2/36fb-1/HIG-17-023_ZllH_invisible_vs.xml
+
+#---------------------------
+#--- CMS Run2, 140 fb-1 ---
+#---------------------------
+
+## H -> gamma gamma
+CMS/Run2/140fb-1/HIG-19-015_ggH-VBF-VH-top_gammagamma_vn_dim4.xml
+
+## H -> ZZ
+CMS/Run2/140fb-1/HIG-19-001_ggH-VBF-VH-ttH_vn_dim4.xml
+
+## H -> tau tau
+CMS/Run2/140fb-1/HIG-19-010_VBF-ggH_tautau_vn68_fig14b.xml
 
