@@ -1,127 +1,210 @@
-# Pythia MCP Server
-
 <div align="center">
 
-**An Oracle for Higgs Boson Phenomenology**
+<!-- Animated Header -->
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=24,25,26&height=200&section=header&text=🔮%20PYTHIA&fontSize=80&fontColor=fff&animation=twinkling&fontAlignY=35&desc=Higgs%20Boson%20Phenomenology%20MCP%20Server&descAlignY=55&descSize=18"/>
 
-*Model Context Protocol Server for Constraining New Physics from LHC Higgs Measurements*
+<br/>
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
-[![Python](https://img.shields.io/badge/Python-3.6+-blue.svg)](https://www.python.org/)
+<!-- Badges Row 1 -->
+<p>
+<a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-Server-00d4aa?style=for-the-badge" alt="MCP Server"/></a>
+<a href="https://home.cern"><img src="https://img.shields.io/badge/CERN-LHC_Data-0033a0?style=for-the-badge" alt="CERN"/></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL_v3-blue?style=for-the-badge" alt="License"/></a>
+<a href="#"><img src="https://img.shields.io/badge/Physics-Research-9b59b6?style=for-the-badge" alt="Physics"/></a>
+</p>
+
+<!-- Badges Row 2 -->
+<p>
+<img src="https://img.shields.io/badge/TypeScript-✓-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"/>
+<img src="https://img.shields.io/badge/Python-3.6+-3776ab?style=flat-square&logo=python&logoColor=white" alt="Python"/>
+<img src="https://img.shields.io/badge/Lilith-Interface-ff6b6b?style=flat-square" alt="Lilith"/>
+<img src="https://img.shields.io/badge/Higgs_Boson-125_GeV-gold?style=flat-square" alt="Higgs"/>
+<img src="https://img.shields.io/badge/Claude_Desktop-Ready-blueviolet?style=flat-square&logo=anthropic" alt="Claude"/>
+</p>
+
+<br/>
+
+<!-- Tagline Box -->
+<table>
+<tr>
+<td>
+
+```
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║   🔮  Named after the Oracle of Delphi, Pythia brings the power of          ║
+║       particle physics to your AI assistant — enabling Claude to            ║
+║       constrain new physics from LHC Higgs boson measurements.              ║
+║                                                                              ║
+║       ⚛️  Interface: Lilith library for Higgs phenomenology                  ║
+║       📊  Data: ATLAS + CMS signal strength measurements                     ║
+║       🔬  Physics: Beyond Standard Model constraints                         ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
+</td>
+</tr>
+</table>
+
+<br/>
+
+<!-- Quick Links -->
+[**🚀 Quick Start**](#-quick-start) · [**⚛️ Physics**](#-physics-background) · [**🔧 Tools**](#-available-tools) · [**📖 Examples**](#-usage-examples) · [**📚 Citations**](#-citations--acknowledgments)
+
+<br/>
 
 </div>
 
 ---
 
-## Built on Lilith
+<br/>
 
-> **This project is a wrapper around [Lilith-2](https://github.com/sabinekraml/Lilith-2)**, a powerful Python tool developed by **Sabine Kraml and collaborators** at LPSC Grenoble for constraining new physics from Higgs boson measurements. All physics calculations are performed by Lilith — Pythia simply provides an MCP interface to make Lilith accessible to AI assistants.
+## 🏛️ Built on Lilith
+
+<div align="center">
+
+> **⚠️ IMPORTANT**: This project is a wrapper around [**Lilith-2**](https://github.com/sabinekraml/Lilith-2), a powerful Python tool developed by **Sabine Kraml and collaborators** at LPSC Grenoble. All physics calculations are performed by Lilith — Pythia simply provides an MCP interface.
 >
-> **Original Lilith Repository**: https://github.com/sabinekraml/Lilith-2
-> **Our Fork**: https://github.com/consigcody94/Lilith-2
->
-> If you find this useful, please **star the original Lilith repository** and cite the Lilith papers in your research!
+> **[⭐ Star the Original Lilith Repository](https://github.com/sabinekraml/Lilith-2)** and cite the Lilith papers in your research!
+
+</div>
+
+<br/>
 
 ---
 
-## Overview
+<br/>
 
-**Pythia** (named after the Oracle of Delphi in Greek mythology) is a Model Context Protocol (MCP) server that provides AI assistants with powerful tools for Higgs boson phenomenology. It interfaces with [Lilith](https://github.com/sabinekraml/Lilith-2), a comprehensive framework for constraining new physics scenarios using signal strength measurements from the ATLAS and CMS experiments at the Large Hadron Collider (LHC).
+## 🎯 What is Pythia?
 
-### Key Features
+<table>
+<tr>
+<td width="50%">
 
-- **Likelihood Computation**: Calculate -2 log(L) for arbitrary BSM scenarios
-- **Parameter Scans**: 1D and 2D parameter space scans with likelihood profiles
-- **Physics Models**: Built-in support for Two-Higgs-Doublet Models (2HDM) and singlet extensions
-- **Live Data Access**: Real-time queries to HEPData and CERN Open Data portals
-- **Database Updates**: Fetch latest experimental results from ATLAS and CMS
-- **SM Predictions**: Standard Model cross sections and branching ratios
+### 🔬 The Challenge
+```
+New physics theories predict
+modified Higgs couplings...
+
+But how do we test them
+against LHC data?
+
+❌ Complex calculations
+❌ Multiple decay channels
+❌ Statistical combinations
+❌ Expert knowledge required
+```
+
+</td>
+<td width="50%">
+
+### ✅ Pythia Solution
+```
+Ask Claude in plain English:
+
+"What constraints does LHC
+ data place on a two-Higgs
+ doublet model?"
+
+✅ Lilith handles the math
+✅ Signal strengths computed
+✅ Constraints calculated
+✅ Results explained clearly
+```
+
+</td>
+</tr>
+</table>
+
+<br/>
 
 ---
 
-## Table of Contents
+<br/>
 
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Available Tools](#available-tools)
-- [Usage Examples](#usage-examples)
-- [Physics Background](#physics-background)
-- [Data Sources](#data-sources)
-- [Contributing](#contributing)
-- [Citations & Acknowledgments](#citations--acknowledgments)
-- [License](#license)
+## ⚛️ Physics Background
+
+<div align="center">
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│                    THE 125 GeV HIGGS BOSON                                 │
+│                                                                             │
+│    Discovery: July 4, 2012 at CERN's Large Hadron Collider                 │
+│                                                                             │
+│    ┌─────────────────────────────────────────────────────────────┐         │
+│    │                                                             │         │
+│    │   Production Modes          Decay Channels                  │         │
+│    │   ────────────────          ──────────────                  │         │
+│    │   • ggF (gluon fusion)      • H → γγ (diphoton)            │         │
+│    │   • VBF (vector boson)      • H → ZZ* → 4ℓ                 │         │
+│    │   • WH, ZH (associated)     • H → WW* → ℓνℓν               │         │
+│    │   • ttH (top associated)    • H → bb̄, ττ, μμ               │         │
+│    │                                                             │         │
+│    └─────────────────────────────────────────────────────────────┘         │
+│                                                                             │
+│    Signal Strength: μ = σ_observed / σ_SM_predicted                        │
+│                                                                             │
+│    μ = 1  →  Standard Model ✓                                              │
+│    μ ≠ 1  →  New Physics! 🎉                                               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+</div>
+
+<br/>
+
+### 📊 Reduced Couplings (κ-Framework)
+
+<div align="center">
+
+| Coupling | SM Value | Description |
+|:--------:|:--------:|:-----------:|
+| **C_V** | 1.0 | Coupling to W and Z bosons |
+| **C_t** | 1.0 | Coupling to top quark |
+| **C_b** | 1.0 | Coupling to bottom quark |
+| **C_τ** | 1.0 | Coupling to tau lepton |
+| **C_g** | 1.0 | Effective coupling to gluons (loop) |
+| **C_γ** | 1.0 | Effective coupling to photons (loop) |
+
+</div>
+
+<br/>
 
 ---
 
-## Installation
+<br/>
 
-### Prerequisites
+## 🚀 Quick Start
 
-- **Node.js** 20.x or higher
-- **Python** 3.6 or higher
-- **NumPy** and **SciPy** Python packages
-
-### Step 1: Clone the Repository
+### 📦 Installation
 
 ```bash
-git clone https://github.com/codymaryland/pythia-mcp.git
+# Clone the repository
+git clone https://github.com/consigcody94/pythia-mcp.git
 cd pythia-mcp
-```
 
-### Step 2: Install Node.js Dependencies
-
-```bash
+# Install Node.js dependencies
 npm install
-```
 
-### Step 3: Build the TypeScript
-
-```bash
+# Build TypeScript
 npm run build
-```
 
-### Step 4: Install Lilith
-
-Pythia requires Lilith-2 to be installed. You can either:
-
-**Option A: Use the bundled Lilith (recommended)**
-```bash
-# The repository includes Lilith in the 'lilith' subdirectory
-# Ensure Python dependencies are installed:
+# Ensure Python dependencies are installed
 pip install numpy scipy
 ```
 
-**Option B: Set custom Lilith path**
-```bash
-# Clone Lilith separately
-git clone https://github.com/sabinekraml/Lilith-2.git /path/to/lilith
+### ⚡ Claude Desktop Configuration
 
-# Set environment variable
-export LILITH_DIR=/path/to/lilith
-```
-
-### Step 5: Verify Installation
-
-```bash
-# Test that Lilith works
-cd lilith
-python run_lilith.py userinput/example_couplings.xml
-```
-
----
-
-## Configuration
-
-### Adding Pythia to Claude Code
-
-Add the following to your Claude Code MCP configuration file (`~/.claude.json` for user-level or `.mcp.json` for project-level):
+Add to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "pythia": {
-      "type": "stdio",
       "command": "node",
       "args": ["/path/to/pythia-mcp/dist/index.js"],
       "env": {
@@ -133,102 +216,77 @@ Add the following to your Claude Code MCP configuration file (`~/.claude.json` f
 }
 ```
 
-Or use the Claude CLI:
+### ✅ Verify Installation
 
 ```bash
-claude mcp add-json pythia '{
-  "type": "stdio",
-  "command": "node",
-  "args": ["/path/to/pythia-mcp/dist/index.js"],
-  "env": {
-    "LILITH_DIR": "/path/to/pythia-mcp/lilith"
-  }
-}' -s user
+cd lilith
+python run_lilith.py userinput/example_couplings.xml
 ```
 
-### Adding to Other MCP-Compatible Applications
-
-For other applications supporting MCP (e.g., custom AI assistants), use the standard stdio transport:
-
-```json
-{
-  "name": "pythia",
-  "transport": "stdio",
-  "command": "node",
-  "args": ["/path/to/pythia-mcp/dist/index.js"]
-}
-```
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LILITH_DIR` | Path to Lilith installation | `./lilith` |
-| `PYTHON_CMD` | Python executable | `python3` |
+<br/>
 
 ---
 
-## Available Tools
+<br/>
 
-### Core Analysis Tools
+## 🔧 Available Tools
+
+### 🔬 Core Analysis
+
+<div align="center">
 
 | Tool | Description |
-|------|-------------|
-| `compute_likelihood` | Compute Higgs likelihood for reduced couplings or signal strengths |
-| `compute_sm_likelihood` | Get Standard Model reference likelihood |
+|:----:|:-----------:|
+| `compute_likelihood` | Calculate -2 log(L) for BSM scenarios |
+| `compute_sm_likelihood` | Get Standard Model reference |
 | `compute_pvalue` | Calculate p-value for model comparison |
 | `scan_1d` | 1D parameter scan with likelihood profile |
-| `scan_2d` | 2D parameter scan for contour plots |
+| `scan_2d` | 2D scan for contour plots |
 
-### Data Management Tools
+</div>
+
+### 📊 Data Management
+
+<div align="center">
 
 | Tool | Description |
-|------|-------------|
+|:----:|:-----------:|
 | `list_experimental_data` | List datasets in Lilith database |
-| `get_dataset_info` | Get detailed info for a specific dataset |
 | `search_hepdata` | Search HEPData for new measurements |
 | `fetch_hepdata_record` | Download specific HEPData record |
-| `update_database` | Check for database updates |
+| `get_latest_higgs_data` | Fetch latest from all sources |
 
-### CERN Open Data Tools
+</div>
 
-| Tool | Description |
-|------|-------------|
-| `search_cern_opendata` | Search CERN Open Data portal |
-| `get_cern_opendata_record` | Get record metadata |
-| `list_cern_opendata_files` | List downloadable files |
-| `get_latest_higgs_data` | Fetch latest Higgs data from all sources |
+### 🧪 Physics Models
 
-### Physics Model Tools
+<div align="center">
 
 | Tool | Description |
-|------|-------------|
-| `analyze_2hdm` | Analyze Two-Higgs-Doublet Models |
-| `analyze_singlet_extension` | Analyze Higgs singlet extension |
-| `get_sm_predictions` | Get SM cross sections and branching ratios |
-| `convert_to_signal_strength` | Convert couplings to signal strengths |
+|:----:|:-----------:|
+| `analyze_2hdm` | Two-Higgs-Doublet Model analysis |
+| `analyze_singlet_extension` | Higgs singlet extension |
+| `get_sm_predictions` | SM cross sections & branching ratios |
+| `convert_to_signal_strength` | Convert couplings to μ values |
 
-### Utility Tools
+</div>
 
-| Tool | Description |
-|------|-------------|
-| `get_version_info` | Get Pythia and Lilith version info |
-| `validate_input` | Validate XML input format |
+<br/>
 
 ---
 
-## Usage Examples
+<br/>
 
-### Example 1: Check if SM is Compatible with Data
+## 📖 Usage Examples
 
-Ask your AI assistant:
-> "Use Pythia to compute the Standard Model likelihood and tell me if the Higgs data is consistent with the SM."
+### Example 1: Standard Model Check
 
-### Example 2: Test a BSM Scenario
+> *"Use Pythia to compute the Standard Model likelihood and tell me if the Higgs data is consistent with the SM."*
 
-> "Calculate the likelihood for a model where the Higgs coupling to top quarks is 0.9 and to vector bosons is 1.1"
+### Example 2: BSM Scenario
 
-This will use `compute_likelihood` with:
+> *"Calculate the likelihood for a model where the Higgs coupling to top quarks is 0.9 and to vector bosons is 1.1"*
+
 ```json
 {
   "mode": "couplings",
@@ -239,9 +297,8 @@ This will use `compute_likelihood` with:
 
 ### Example 3: 2HDM Analysis
 
-> "Analyze a Type-II 2HDM with tan(β) = 2 and sin(β-α) = 0.99"
+> *"Analyze a Type-II 2HDM with tan(β) = 2 and sin(β-α) = 0.99"*
 
-This will use `analyze_2hdm`:
 ```json
 {
   "type": "II",
@@ -252,9 +309,8 @@ This will use `analyze_2hdm`:
 
 ### Example 4: Parameter Scan
 
-> "Scan the CV-CF plane from 0.8 to 1.2 with 50 steps each and find the best fit point"
+> *"Scan the CV-CF plane from 0.8 to 1.2 with 50 steps each"*
 
-This will use `scan_2d`:
 ```json
 {
   "param1": {"name": "CV", "min": 0.8, "max": 1.2, "steps": 50},
@@ -262,118 +318,67 @@ This will use `scan_2d`:
 }
 ```
 
-### Example 5: Get Latest Data
-
-> "Search HEPData for the latest ATLAS Higgs to diphoton measurements"
-
-This will use `search_hepdata`:
-```json
-{
-  "collaboration": "ATLAS",
-  "decay": "gammagamma"
-}
-```
+<br/>
 
 ---
 
-## Physics Background
+<br/>
 
-### Reduced Couplings
+## 📊 Data Sources
 
-Lilith uses **reduced couplings** (also called coupling modifiers or κ-framework) to parameterize deviations from the Standard Model:
-
-| Coupling | SM Value | Description |
-|----------|----------|-------------|
-| C_V | 1.0 | Coupling to W and Z bosons |
-| C_t | 1.0 | Coupling to top quark |
-| C_b | 1.0 | Coupling to bottom quark |
-| C_τ | 1.0 | Coupling to tau lepton |
-| C_g | 1.0 | Effective coupling to gluons (loop) |
-| C_γ | 1.0 | Effective coupling to photons (loop) |
-
-### Signal Strengths
-
-The signal strength μ is defined as:
+<div align="center">
 
 ```
-μ = (σ × BR)_observed / (σ × BR)_SM
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│   ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐            │
+│   │  🔬 LILITH DB   │  │  📚 HEPDATA     │  │  🌐 CERN OPEN   │            │
+│   │  ────────────── │  │  ────────────── │  │  ────────────── │            │
+│   │  Run 1 (7+8TeV) │  │  Official HEP   │  │  Real collision │            │
+│   │  Run 2 (13TeV)  │  │  data archive   │  │  data & MC      │            │
+│   │  ATLAS + CMS    │  │  CERN/Durham    │  │  analysis code  │            │
+│   └─────────────────┘  └─────────────────┘  └─────────────────┘            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Where σ is the production cross section and BR is the branching ratio.
+</div>
 
-### Likelihood
-
-Lilith computes **-2 log(L)** where L is the likelihood. Lower values indicate better agreement with data. The SM typically has -2 log(L) ≈ Ndof (number of measurements).
-
-### Confidence Levels
-
-For 2D parameter scans, the confidence level contours correspond to:
-- **68% CL**: Δ(-2 log L) = 2.30
-- **95% CL**: Δ(-2 log L) = 5.99
-- **99.7% CL**: Δ(-2 log L) = 11.83
+<br/>
 
 ---
 
-## Data Sources
+<br/>
 
-Pythia integrates with multiple authoritative data sources:
+## 🏗️ Architecture
 
-### Lilith Experimental Database
-
-The built-in database includes published ATLAS and CMS results:
-- Run 1 (7+8 TeV): Final combined results
-- Run 2 (13 TeV): 36 fb⁻¹ and 140 fb⁻¹ results
-- Multiple decay channels: γγ, ZZ, WW, bb, ττ, μμ, invisible
-
-### HEPData
-
-[HEPData](https://www.hepdata.net) is the official repository for publication-related High-Energy Physics data, hosted by CERN and Durham University.
-
-**API Documentation**: https://hepdata.readthedocs.io
-
-### CERN Open Data Portal
-
-[CERN Open Data](https://opendata.cern.ch) provides open access to real collision data, simulated datasets, analysis code, and documentation from LHC experiments.
-
-**API Documentation**: https://opendata.atlas.cern/docs/data/cern_opendata_portal
-
-**CLI Tool**: `cernopendata-client`
-```bash
-pip install cernopendata-client
-cernopendata-client get-metadata --recid 1
 ```
+pythia-mcp/
+├── 📦 src/
+│   ├── index.ts          # MCP server entry point
+│   └── tools/            # Tool implementations
+│
+├── 🔮 lilith/            # Lilith library (bundled)
+│   ├── run_lilith.py     # Main entry point
+│   ├── userinput/        # XML input templates
+│   └── data/             # Experimental database
+│
+├── 📦 dist/              # Compiled output
+├── 📄 package.json
+└── 📄 tsconfig.json
+```
+
+<br/>
 
 ---
 
-## Contributing
+<br/>
 
-Contributions are welcome! Please feel free to submit pull requests for:
+## 📚 Citations & Acknowledgments
 
-- New physics models
-- Updated experimental data
-- Bug fixes
-- Documentation improvements
+### 📖 Required Citations
 
-### Development Setup
-
-```bash
-git clone https://github.com/codymaryland/pythia-mcp.git
-cd pythia-mcp
-npm install
-npm run dev  # Run in development mode
-```
-
----
-
-## Citations & Acknowledgments
-
-### Lilith (Required Citation)
-
-**Pythia is built entirely on Lilith.** If you use this tool for your research, you **must** cite the original Lilith papers:
-
-**Primary Repository**: https://github.com/sabinekraml/Lilith-2
-
-If you use Pythia (which uses Lilith) for your research, please cite:
+**If you use Pythia for research, you MUST cite Lilith:**
 
 ```bibtex
 @article{Bernon:2015hsa,
@@ -381,7 +386,6 @@ If you use Pythia (which uses Lilith) for your research, please cite:
     title = "{Lilith: A tool for constraining new physics from Higgs measurements}",
     journal = "Eur. Phys. J. C",
     volume = "75",
-    number = "9",
     pages = "440",
     year = "2015",
     doi = "10.1140/epjc/s10052-015-3645-9",
@@ -391,83 +395,86 @@ If you use Pythia (which uses Lilith) for your research, please cite:
 
 @article{Kraml:2019sis,
     author = "Kraml, Sabine and others",
-    title = "{Lilith-2: A new release with improved precision constraints}",
+    title = "{Lilith-2: Improved precision constraints}",
     year = "2019",
     eprint = "1908.03952",
     archivePrefix = "arXiv"
 }
 ```
 
-### HEPData
+### 🙏 Special Thanks
 
-```bibtex
-@article{Maguire:2017ypu,
-    author = "Maguire, Eamonn and others",
-    title = "{HEPData: a repository for high energy physics data}",
-    journal = "J. Phys. Conf. Ser.",
-    volume = "898",
-    number = "10",
-    pages = "102006",
-    year = "2017",
-    doi = "10.1088/1742-6596/898/10/102006"
-}
-```
+<div align="center">
 
-### CERN Open Data
+| | |
+|:-:|:-:|
+| **Sabine Kraml & Lilith Team** | LPSC Grenoble |
+| **ATLAS & CMS Collaborations** | Higgs measurements |
+| **HEPData Team** | Durham/CERN |
+| **Anthropic** | MCP Protocol |
 
-```bibtex
-@misc{cernopendata,
-    author = "{CERN}",
-    title = "{CERN Open Data Portal}",
-    url = "https://opendata.cern.ch",
-    year = "2024"
-}
-```
+</div>
 
-### Special Thanks
-
-- **Sabine Kraml** and the Lilith development team at LPSC Grenoble
-- **ATLAS and CMS Collaborations** for publishing their Higgs measurements
-- **HEPData Team** at Durham University and CERN
-- **CERN Open Data Team** for making particle physics data accessible
-- **Anthropic** for developing the Model Context Protocol
+<br/>
 
 ---
 
-## License
+<br/>
 
-This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](LICENSE) file for details.
+## 🔗 References
 
-Lilith is also licensed under GPL v3.
+<div align="center">
+
+| Resource | Link |
+|:--------:|:----:|
+| **Lilith-2** | [github.com/sabinekraml/Lilith-2](https://github.com/sabinekraml/Lilith-2) |
+| **Lilith Paper** | [arXiv:1502.04138](https://arxiv.org/abs/1502.04138) |
+| **HEPData** | [hepdata.net](https://www.hepdata.net) |
+| **CERN Open Data** | [opendata.cern.ch](https://opendata.cern.ch) |
+| **LHC Higgs XS WG** | [twiki.cern.ch](https://twiki.cern.ch/twiki/bin/view/LHCPhysics/LHCHWG) |
+
+</div>
+
+<br/>
 
 ---
 
-## References
+<br/>
 
-### Primary Publications
+## 📄 License
 
-1. Bernon & Dumont, *"Lilith: A tool for constraining new physics from Higgs measurements"*, [arXiv:1502.04138](https://arxiv.org/abs/1502.04138)
+<div align="center">
 
-2. Kraml et al., *"Lilith-2: Improvements in Higgs likelihood calculations"*, [arXiv:1908.03952](https://arxiv.org/abs/1908.03952)
+**GNU General Public License v3.0**
 
-3. Bechtle et al., *"Higgs-mass predictions in the MSSM"*, [arXiv:2012.11408](https://arxiv.org/abs/2012.11408)
+This project and Lilith are licensed under GPL v3 - see [LICENSE](LICENSE) for details.
 
-### Experimental Results
+</div>
 
-- [ATLAS Higgs Results](https://atlas.cern/tags/higgs-boson)
-- [CMS Higgs Results](https://cms.cern/physics/higgs-boson)
-- [LHC Higgs Cross Section Working Group](https://twiki.cern.ch/twiki/bin/view/LHCPhysics/LHCHWG)
-
-### Tutorials
-
-- [Lilith-2 Tutorial (Tools 2020)](https://indico.cern.ch/event/955391/contributions/4086275/)
+<br/>
 
 ---
 
 <div align="center">
 
-**Pythia MCP Server** — *Seeking truth in the Higgs sector*
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=24,25,26&height=100&section=footer"/>
 
-Made with dedication to open science and particle physics research.
+<br/>
+
+**🔮 Pythia** — *Seeking Truth in the Higgs Sector*
+
+<br/>
+
+*"The Higgs boson is the key to understanding the origin of mass in the universe."*
+<br/>
+— Peter Higgs
+
+<br/>
+
+Made with dedication to open science and particle physics research
+
+<br/>
+
+[⬆ Back to Top](#-pythia)
 
 </div>
