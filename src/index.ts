@@ -20,11 +20,13 @@ import {
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { spawn, execSync } from "child_process";
-import * as fs from "fs";
+import { spawn } from "child_process";
+import * as fs from "fs/promises";
+import * as fsSync from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import https from "https";
+import crypto from "crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +41,167 @@ const HEPDATA_API_BASE = "https://www.hepdata.net";
 
 // CERN Open Data API configuration
 const CERN_OPENDATA_API = "https://opendata.cern.ch/api/records";
+
+// HTTP request timeout (30 seconds)
+const HTTP_TIMEOUT_MS = 30000;
+
+// Maximum concurrent operations for scans
+const MAX_CONCURRENT_SCANS = 10;
+
+// Simple in-memory cache with TTL
+interface CacheEntry<T> {
+  data: T;
+  expiry: number;
+}
+
+const apiCache = new Map<string, CacheEntry<unknown>>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function getCached<T>(key: string): T | null {
+  const entry = apiCache.get(key) as CacheEntry<T> | undefined;
+  if (entry && Date.now() < entry.expiry) {
+    return entry.data;
+  }
+  apiCache.delete(key);
+  return null;
+}
+
+function setCache<T>(key: string, data: T): void {
+  // Limit cache size to prevent memory issues
+  if (apiCache.size > 1000) {
+    const oldestKey = apiCache.keys().next().value;
+    if (oldestKey) apiCache.delete(oldestKey);
+  }
+  apiCache.set(key, { data, expiry: Date.now() + CACHE_TTL_MS });
+}
+
+/**
+ * Escape XML special characters to prevent XML injection
+ */
+function escapeXml(unsafe: string | number): string {
+  const str = String(unsafe);
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+/**
+ * Validate numeric parameter is within acceptable range
+ */
+function validateNumber(value: unknown, name: string, min: number, max: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${name} must be a finite number`);
+  }
+  if (value < min || value > max) {
+    throw new Error(`${name} must be between ${min} and ${max}`);
+  }
+  return value;
+}
+
+/**
+ * Validate coupling parameter (typically -10 to 10)
+ */
+function validateCoupling(value: unknown, name: string): number {
+  if (value === undefined || value === null) {
+    return NaN; // Will use default
+  }
+  return validateNumber(value, name, -100, 100);
+}
+
+/**
+ * Validate branching ratio (0 to 1)
+ */
+function validateBranchingRatio(value: unknown, name: string): number {
+  if (value === undefined || value === null) {
+    return NaN;
+  }
+  return validateNumber(value, name, 0, 1);
+}
+
+/**
+ * Validate Higgs mass (reasonable range)
+ */
+function validateMass(value: unknown): number {
+  if (value === undefined || value === null) {
+    return 125.09; // Default
+  }
+  return validateNumber(value, "mass", 1, 1000);
+}
+
+/**
+ * Generate secure random temp filename
+ */
+function generateTempFilename(prefix: string): string {
+  const randomId = crypto.randomBytes(16).toString("hex");
+  return path.join(LILITH_DIR, `${prefix}_${randomId}.xml`);
+}
+
+/**
+ * Safely resolve and validate a path within a base directory
+ * Prevents path traversal attacks
+ */
+function safeResolvePath(basePath: string, userPath: string): string {
+  // Normalize and resolve the path
+  const resolved = path.resolve(basePath, userPath);
+  const normalizedBase = path.resolve(basePath);
+
+  // Ensure the resolved path is within the base directory
+  if (!resolved.startsWith(normalizedBase + path.sep) && resolved !== normalizedBase) {
+    throw new Error("Invalid path: access denied");
+  }
+
+  return resolved;
+}
+
+/**
+ * Safely compile regex with error handling for ReDoS prevention
+ */
+function safeRegex(pattern: string): RegExp {
+  // Limit pattern length
+  if (pattern.length > 500) {
+    throw new Error("Regex pattern too long");
+  }
+
+  // Basic check for dangerous patterns (nested quantifiers)
+  if (/(\+|\*|\{[^}]+\})\s*(\+|\*|\{[^}]+\})|(\([^)]*\))\s*(\+|\*|\{[^}]+\})\s*(\+|\*|\{[^}]+\})/.test(pattern)) {
+    throw new Error("Potentially dangerous regex pattern");
+  }
+
+  try {
+    return new RegExp(pattern);
+  } catch (e) {
+    throw new Error(`Invalid regex pattern: ${e instanceof Error ? e.message : "unknown error"}`);
+  }
+}
+
+/**
+ * Run operations concurrently with a limit
+ */
+async function parallelLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let currentIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (currentIndex < items.length) {
+      const index = currentIndex++;
+      results[index] = await fn(items[index], index);
+    }
+  }
+
+  const workers = Array(Math.min(limit, items.length))
+    .fill(null)
+    .map(() => worker());
+
+  await Promise.all(workers);
+  return results;
+}
 
 interface LilithResult {
   likelihood: number;
@@ -90,9 +253,9 @@ async function runLilith(args: string[], input?: string): Promise<string> {
 }
 
 /**
- * Generate XML input for reduced couplings mode
+ * Coupling parameters interface
  */
-function generateReducedCouplingsXML(params: {
+interface CouplingParams {
   mass?: number;
   CV?: number;
   CF?: number;
@@ -107,52 +270,81 @@ function generateReducedCouplingsXML(params: {
   BRinv?: number;
   BRundet?: number;
   precision?: string;
-}): string {
-  const mass = params.mass ?? 125.09;
-  const precision = params.precision ?? "BEST-QCD";
+}
 
-  // Default to SM values (1.0) if not specified
-  const CV = params.CV ?? 1.0;
-  const Ct = params.Ct ?? params.CF ?? 1.0;
-  const Cb = params.Cb ?? params.CF ?? 1.0;
-  const Cc = params.Cc ?? params.CF ?? 1.0;
-  const Ctau = params.Ctau ?? params.CF ?? 1.0;
-  const Cmu = params.Cmu ?? params.CF ?? 1.0;
-  const BRinv = params.BRinv ?? 0.0;
-  const BRundet = params.BRundet ?? 0.0;
+/**
+ * Generate XML input for reduced couplings mode with validation and escaping
+ */
+function generateReducedCouplingsXML(params: CouplingParams): string {
+  // Validate and sanitize inputs
+  const mass = validateMass(params.mass);
+  const precision = params.precision === "LO" ? "LO" : "BEST-QCD"; // Whitelist allowed values
 
+  // Default to SM values (1.0) if not specified, validate otherwise
+  const cvVal = validateCoupling(params.CV, "CV");
+  const cfVal = validateCoupling(params.CF, "CF");
+  const CV = Number.isNaN(cvVal) ? 1.0 : cvVal;
+  const CF = Number.isNaN(cfVal) ? 1.0 : cfVal;
+
+  const ctVal = validateCoupling(params.Ct, "Ct");
+  const cbVal = validateCoupling(params.Cb, "Cb");
+  const ccVal = validateCoupling(params.Cc, "Cc");
+  const ctauVal = validateCoupling(params.Ctau, "Ctau");
+  const cmuVal = validateCoupling(params.Cmu, "Cmu");
+
+  const Ct = Number.isNaN(ctVal) ? CF : ctVal;
+  const Cb = Number.isNaN(cbVal) ? CF : cbVal;
+  const Cc = Number.isNaN(ccVal) ? CF : ccVal;
+  const Ctau = Number.isNaN(ctauVal) ? CF : ctauVal;
+  const Cmu = Number.isNaN(cmuVal) ? CF : cmuVal;
+
+  const brInvVal = validateBranchingRatio(params.BRinv, "BRinv");
+  const brUndetVal = validateBranchingRatio(params.BRundet, "BRundet");
+  const BRinv = Number.isNaN(brInvVal) ? 0.0 : brInvVal;
+  const BRundet = Number.isNaN(brUndetVal) ? 0.0 : brUndetVal;
+
+  // Build XML with escaped values
   let xml = `<?xml version="1.0"?>
 <lilithinput>
 <reducedcouplings>
-  <mass>${mass}</mass>
+  <mass>${escapeXml(mass)}</mass>
 
-  <C to="tt">${Ct}</C>
-  <C to="bb">${Cb}</C>
-  <C to="cc">${Cc}</C>
-  <C to="tautau">${Ctau}</C>
-  <C to="mumu">${Cmu}</C>
-  <C to="ZZ">${CV}</C>
-  <C to="WW">${CV}</C>
+  <C to="tt">${escapeXml(Ct)}</C>
+  <C to="bb">${escapeXml(Cb)}</C>
+  <C to="cc">${escapeXml(Cc)}</C>
+  <C to="tautau">${escapeXml(Ctau)}</C>
+  <C to="mumu">${escapeXml(Cmu)}</C>
+  <C to="ZZ">${escapeXml(CV)}</C>
+  <C to="WW">${escapeXml(CV)}</C>
 `;
 
-  // Add loop-induced couplings if specified
+  // Add loop-induced couplings if specified (validate first)
   if (params.Cg !== undefined) {
-    xml += `  <C to="gg">${params.Cg}</C>\n`;
+    const cg = validateCoupling(params.Cg, "Cg");
+    if (!Number.isNaN(cg)) {
+      xml += `  <C to="gg">${escapeXml(cg)}</C>\n`;
+    }
   }
   if (params.Cgamma !== undefined) {
-    xml += `  <C to="gammagamma">${params.Cgamma}</C>\n`;
+    const cgamma = validateCoupling(params.Cgamma, "Cgamma");
+    if (!Number.isNaN(cgamma)) {
+      xml += `  <C to="gammagamma">${escapeXml(cgamma)}</C>\n`;
+    }
   }
   if (params.CZgamma !== undefined) {
-    xml += `  <C to="Zgamma">${params.CZgamma}</C>\n`;
+    const czgamma = validateCoupling(params.CZgamma, "CZgamma");
+    if (!Number.isNaN(czgamma)) {
+      xml += `  <C to="Zgamma">${escapeXml(czgamma)}</C>\n`;
+    }
   }
 
   xml += `
   <extraBR>
-    <BR to="invisible">${BRinv}</BR>
-    <BR to="undetected">${BRundet}</BR>
+    <BR to="invisible">${escapeXml(BRinv)}</BR>
+    <BR to="undetected">${escapeXml(BRundet)}</BR>
   </extraBR>
 
-  <precision>${precision}</precision>
+  <precision>${escapeXml(precision)}</precision>
 </reducedcouplings>
 </lilithinput>`;
 
@@ -160,48 +352,104 @@ function generateReducedCouplingsXML(params: {
 }
 
 /**
- * Generate XML input for signal strengths mode
+ * Signal strengths parameters interface
  */
-function generateSignalStrengthsXML(params: {
+interface SignalStrengthParams {
   mass?: number;
-  signalStrengths: { [key: string]: number };
-}): string {
-  const mass = params.mass ?? 125.09;
+  signalStrengths: Record<string, number>;
+}
+
+// Whitelist of allowed production and decay modes
+const ALLOWED_PRODUCTION_MODES = new Set(["ggH", "VBF", "WH", "ZH", "ttH", "tH", "bbH"]);
+const ALLOWED_DECAY_MODES = new Set(["gammagamma", "ZZ", "WW", "bb", "tautau", "mumu", "cc", "Zgamma", "gg", "invisible"]);
+
+/**
+ * Generate XML input for signal strengths mode with validation and escaping
+ */
+function generateSignalStrengthsXML(params: SignalStrengthParams): string {
+  const mass = validateMass(params.mass);
+
+  if (!params.signalStrengths || typeof params.signalStrengths !== "object") {
+    throw new Error("signalStrengths must be an object");
+  }
 
   let muEntries = "";
   for (const [key, value] of Object.entries(params.signalStrengths)) {
+    // Validate signal strength value
+    if (typeof value !== "number" || !Number.isFinite(value) || value < -100 || value > 100) {
+      throw new Error(`Invalid signal strength value for ${key}: must be a finite number between -100 and 100`);
+    }
+
     // Key format: "prod_decay" e.g., "ggH_gammagamma"
-    const [prod, decay] = key.split("_");
-    muEntries += `  <mu prod="${prod}" decay="${decay}">${value}</mu>\n`;
+    const parts = key.split("_");
+    if (parts.length !== 2) {
+      throw new Error(`Invalid signal strength key format: ${key}. Expected 'prod_decay' format.`);
+    }
+    const [prod, decay] = parts;
+
+    // Validate production and decay modes against whitelist
+    if (!ALLOWED_PRODUCTION_MODES.has(prod)) {
+      throw new Error(`Invalid production mode: ${prod}. Allowed: ${[...ALLOWED_PRODUCTION_MODES].join(", ")}`);
+    }
+    if (!ALLOWED_DECAY_MODES.has(decay)) {
+      throw new Error(`Invalid decay mode: ${decay}. Allowed: ${[...ALLOWED_DECAY_MODES].join(", ")}`);
+    }
+
+    muEntries += `  <mu prod="${escapeXml(prod)}" decay="${escapeXml(decay)}">${escapeXml(value)}</mu>\n`;
   }
 
   return `<?xml version="1.0"?>
 <lilithinput>
 <signalstrengths>
-  <mass>${mass}</mass>
+  <mass>${escapeXml(mass)}</mass>
 ${muEntries}
 </signalstrengths>
 </lilithinput>`;
 }
 
 /**
- * Fetch data from HEPData API
+ * Fetch data from HEPData API with timeout and caching
  */
-async function fetchHEPData(endpoint: string): Promise<any> {
+async function fetchHEPData(endpoint: string): Promise<unknown> {
+  const cacheKey = `hepdata:${endpoint}`;
+  const cached = getCached<unknown>(cacheKey);
+  if (cached !== null) {
+    return cached;
+  }
+
   return new Promise((resolve, reject) => {
     const url = `${HEPDATA_API_BASE}${endpoint}`;
 
-    https.get(url, (res) => {
+    const req = https.get(url, (res) => {
+      // Handle redirects
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        fetchHEPData(res.headers.location).then(resolve).catch(reject);
+        return;
+      }
+
+      if (res.statusCode && res.statusCode >= 400) {
+        reject(new Error(`HEPData API error: HTTP ${res.statusCode}`));
+        return;
+      }
+
       let data = "";
-      res.on("data", (chunk) => { data += chunk; });
+      res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
       res.on("end", () => {
         try {
-          resolve(JSON.parse(data));
+          const parsed = JSON.parse(data);
+          setCache(cacheKey, parsed);
+          resolve(parsed);
         } catch (e) {
-          reject(new Error(`Failed to parse HEPData response: ${e}`));
+          reject(new Error(`Failed to parse HEPData response: ${e instanceof Error ? e.message : "unknown error"}`));
         }
       });
-    }).on("error", reject);
+    });
+
+    req.on("error", reject);
+    req.setTimeout(HTTP_TIMEOUT_MS, () => {
+      req.destroy();
+      reject(new Error("HEPData API request timeout"));
+    });
   });
 }
 
@@ -227,23 +475,48 @@ async function searchHEPDataHiggs(params: {
 }
 
 /**
- * Fetch data from CERN Open Data portal
+ * Fetch data from CERN Open Data portal with timeout and caching
  */
-async function fetchCERNOpenData(endpoint: string): Promise<any> {
+async function fetchCERNOpenData(endpoint: string): Promise<unknown> {
+  const cacheKey = `cern:${endpoint}`;
+  const cached = getCached<unknown>(cacheKey);
+  if (cached !== null) {
+    return cached;
+  }
+
   return new Promise((resolve, reject) => {
     const url = endpoint.startsWith("http") ? endpoint : `${CERN_OPENDATA_API}${endpoint}`;
 
-    https.get(url, (res) => {
+    const req = https.get(url, (res) => {
+      // Handle redirects
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        fetchCERNOpenData(res.headers.location).then(resolve).catch(reject);
+        return;
+      }
+
+      if (res.statusCode && res.statusCode >= 400) {
+        reject(new Error(`CERN Open Data API error: HTTP ${res.statusCode}`));
+        return;
+      }
+
       let data = "";
-      res.on("data", (chunk) => { data += chunk; });
+      res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
       res.on("end", () => {
         try {
-          resolve(JSON.parse(data));
+          const parsed = JSON.parse(data);
+          setCache(cacheKey, parsed);
+          resolve(parsed);
         } catch (e) {
-          reject(new Error(`Failed to parse CERN Open Data response: ${e}`));
+          reject(new Error(`Failed to parse CERN Open Data response: ${e instanceof Error ? e.message : "unknown error"}`));
         }
       });
-    }).on("error", reject);
+    });
+
+    req.on("error", reject);
+    req.setTimeout(HTTP_TIMEOUT_MS, () => {
+      req.destroy();
+      reject(new Error("CERN Open Data API request timeout"));
+    });
   });
 }
 
@@ -816,21 +1089,28 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
   if (uri.startsWith("lilith://data/")) {
     const filename = uri.replace("lilith://data/", "");
-    const filepath = path.join(DATA_DIR, filename);
 
-    if (fs.existsSync(filepath)) {
-      const content = fs.readFileSync(filepath, "utf-8");
+    // Validate filename to prevent path traversal
+    const safePath = safeResolvePath(DATA_DIR, filename);
+
+    try {
+      const content = await fs.readFile(safePath, "utf-8");
       return {
         contents: [{ uri, mimeType: "text/plain", text: content }]
       };
+    } catch {
+      throw new Error(`Resource not found: ${uri}`);
     }
   }
 
   if (uri === "lilith://version") {
     const versionFile = path.join(DATA_DIR, "version");
     let dbVersion = "unknown";
-    if (fs.existsSync(versionFile)) {
-      dbVersion = fs.readFileSync(versionFile, "utf-8").trim().split("\n")[1] || "unknown";
+    try {
+      const content = await fs.readFile(versionFile, "utf-8");
+      dbVersion = content.trim().split("\n")[1] || "unknown";
+    } catch {
+      // File doesn't exist, use default
     }
 
     return {
@@ -850,6 +1130,26 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 });
 
 /**
+ * Whitelist of allowed experimental input files
+ */
+const ALLOWED_EXP_INPUT_FILES = new Set([
+  "data/latest.list",
+  "data/latestRun2.list",
+  "data/finalRun1.list"
+]);
+
+/**
+ * Safely clean up temp file
+ */
+async function cleanupTempFile(filePath: string): Promise<void> {
+  try {
+    await fs.unlink(filePath);
+  } catch {
+    // Ignore cleanup errors
+  }
+}
+
+/**
  * Handle tool calls
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -858,7 +1158,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case "compute_likelihood": {
-        const params = args as any;
+        const params = args as unknown as CouplingParams & SignalStrengthParams & { mode: string; expInput?: string };
         let xmlInput: string;
 
         if (params.mode === "couplings") {
@@ -869,43 +1169,48 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid mode. Use 'couplings' or 'signalstrengths'");
         }
 
-        // Write temporary input file
-        const tmpFile = path.join(LILITH_DIR, "tmp_input.xml");
-        fs.writeFileSync(tmpFile, xmlInput);
+        // Use secure random temp file
+        const tmpFile = generateTempFilename("input");
+        await fs.writeFile(tmpFile, xmlInput);
 
-        // Run Lilith
-        const expInput = params.expInput || "data/latest.list";
-        const output = await runLilith([
-          "run_lilith.py",
-          tmpFile,
-          expInput,
-          "-v"
-        ]);
+        try {
+          // Validate and whitelist experimental input file
+          const expInput = params.expInput || "data/latest.list";
+          if (!ALLOWED_EXP_INPUT_FILES.has(expInput)) {
+            throw new Error(`Invalid experimental input file. Allowed: ${[...ALLOWED_EXP_INPUT_FILES].join(", ")}`);
+          }
 
-        // Clean up
-        fs.unlinkSync(tmpFile);
+          const output = await runLilith([
+            "run_lilith.py",
+            tmpFile,
+            expInput,
+            "-v"
+          ]);
 
-        // Parse output
-        const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
-        const ndfMatch = output.match(/Ndof\s*=\s*(\d+)/);
-        const dbVersionMatch = output.match(/database version\s+([\d.]+)/);
+          // Parse output
+          const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
+          const ndfMatch = output.match(/Ndof\s*=\s*(\d+)/);
+          const dbVersionMatch = output.match(/database version\s+([\d.]+)/);
 
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              likelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null,
-              ndf: ndfMatch ? parseInt(ndfMatch[1]) : null,
-              dbVersion: dbVersionMatch ? dbVersionMatch[1] : "unknown",
-              rawOutput: output,
-              inputXML: xmlInput
-            }, null, 2)
-          }]
-        };
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                likelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null,
+                ndf: ndfMatch ? parseInt(ndfMatch[1]) : null,
+                dbVersion: dbVersionMatch ? dbVersionMatch[1] : "unknown",
+                rawOutput: output,
+                inputXML: xmlInput
+              }, null, 2)
+            }]
+          };
+        } finally {
+          await cleanupTempFile(tmpFile);
+        }
       }
 
       case "compute_sm_likelihood": {
-        const params = args as any;
+        const params = args as { expInput?: string };
         const xmlInput = generateReducedCouplingsXML({
           CV: 1.0,
           CF: 1.0,
@@ -913,41 +1218,60 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           BRundet: 0.0
         });
 
-        const tmpFile = path.join(LILITH_DIR, "tmp_sm_input.xml");
-        fs.writeFileSync(tmpFile, xmlInput);
+        const tmpFile = generateTempFilename("sm_input");
+        await fs.writeFile(tmpFile, xmlInput);
 
-        const expInput = params?.expInput || "data/latest.list";
-        const output = await runLilith([
-          "run_lilith.py",
-          tmpFile,
-          expInput
-        ]);
+        try {
+          const expInput = params?.expInput || "data/latest.list";
+          if (!ALLOWED_EXP_INPUT_FILES.has(expInput)) {
+            throw new Error(`Invalid experimental input file. Allowed: ${[...ALLOWED_EXP_INPUT_FILES].join(", ")}`);
+          }
 
-        fs.unlinkSync(tmpFile);
+          const output = await runLilith([
+            "run_lilith.py",
+            tmpFile,
+            expInput
+          ]);
 
-        const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
+          const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
 
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              smLikelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null,
-              description: "Standard Model reference likelihood (-2 log L)"
-            }, null, 2)
-          }]
-        };
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                smLikelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null,
+                description: "Standard Model reference likelihood (-2 log L)"
+              }, null, 2)
+            }]
+          };
+        } finally {
+          await cleanupTempFile(tmpFile);
+        }
       }
 
       case "list_experimental_data": {
-        const params = args as any;
-        const experiment = params?.experiment || "all";
-        const runPeriod = params?.runPeriod || "all";
+        const params = args as { experiment?: string; runPeriod?: string };
 
-        const datasets: any[] = [];
-        const dataDir = DATA_DIR;
+        // Whitelist experiment values
+        const allowedExperiments = ["ATLAS", "CMS", "ATLAS-CMS", "Tevatron", "all"];
+        const experiment = params?.experiment && allowedExperiments.includes(params.experiment)
+          ? params.experiment
+          : "all";
+
+        const allowedRunPeriods = ["Run1", "Run2", "all"];
+        const runPeriod = params?.runPeriod && allowedRunPeriods.includes(params.runPeriod)
+          ? params.runPeriod
+          : "all";
+
+        interface DatasetInfo {
+          path: string;
+          experiment: string;
+          runPeriod: string;
+        }
+        const datasets: DatasetInfo[] = [];
 
         // Read the latest.list to get active datasets
-        const latestList = fs.readFileSync(path.join(dataDir, "latest.list"), "utf-8");
+        const latestList = await fs.readFile(path.join(DATA_DIR, "latest.list"), "utf-8");
         const lines = latestList.split("\n");
 
         for (const line of lines) {
@@ -979,36 +1303,60 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_dataset_info": {
-        const params = args as any;
-        const datasetPath = path.join(DATA_DIR, params.datasetPath);
+        const params = args as { datasetPath: string };
 
-        if (!fs.existsSync(datasetPath)) {
-          throw new Error(`Dataset not found: ${params.datasetPath}`);
+        if (!params.datasetPath || typeof params.datasetPath !== "string") {
+          throw new Error("datasetPath is required and must be a string");
         }
 
-        const content = fs.readFileSync(datasetPath, "utf-8");
+        // Use safe path resolution to prevent path traversal
+        const safePath = safeResolvePath(DATA_DIR, params.datasetPath);
 
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              path: params.datasetPath,
-              xmlContent: content
-            }, null, 2)
-          }]
-        };
+        try {
+          const content = await fs.readFile(safePath, "utf-8");
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                path: params.datasetPath,
+                xmlContent: content
+              }, null, 2)
+            }]
+          };
+        } catch {
+          throw new Error(`Dataset not found: ${params.datasetPath}`);
+        }
       }
 
       case "search_hepdata": {
-        const params = args as any;
+        interface HEPDataSearchParams {
+          collaboration?: "ATLAS" | "CMS";
+          year?: number;
+          decay?: string;
+          production?: string;
+          query?: string;
+        }
+        const params = args as HEPDataSearchParams;
 
-        let query = params.query || "Higgs signal strength";
-        if (params.decay) query += ` ${params.decay}`;
-        if (params.production) query += ` ${params.production}`;
-        if (params.year) query += ` ${params.year}`;
+        // Whitelist allowed values
+        const allowedCollabs = ["ATLAS", "CMS"];
+        const allowedDecays = ["gammagamma", "ZZ", "WW", "bb", "tautau", "mumu"];
+        const allowedProductions = ["ggH", "VBF", "VH", "ttH"];
+
+        // Build query with validation
+        let query = params.query?.slice(0, 200) || "Higgs signal strength";
+        if (params.decay && allowedDecays.includes(params.decay)) {
+          query += ` ${params.decay}`;
+        }
+        if (params.production && allowedProductions.includes(params.production)) {
+          query += ` ${params.production}`;
+        }
+        if (params.year && typeof params.year === "number" && params.year >= 2000 && params.year <= 2100) {
+          query += ` ${params.year}`;
+        }
 
         let searchUrl = `/search/?q=${encodeURIComponent(query)}&format=json&size=50`;
-        if (params.collaboration) {
+        if (params.collaboration && allowedCollabs.includes(params.collaboration)) {
           searchUrl += `&collaboration=${params.collaboration}`;
         }
 
@@ -1023,19 +1371,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "fetch_hepdata_record": {
-        const params = args as any;
+        interface HEPDataRecordParams {
+          inspireId?: string;
+          recordId?: number;
+          table?: string;
+          format?: "json" | "yaml" | "csv";
+        }
+        const params = args as HEPDataRecordParams;
 
         let recordUrl: string;
         if (params.inspireId) {
+          // Validate inspireId format (should be alphanumeric with possible prefix)
+          if (!/^[a-zA-Z0-9_-]+$/.test(params.inspireId)) {
+            throw new Error("Invalid inspireId format");
+          }
           recordUrl = `/record/${params.inspireId}?format=json`;
         } else if (params.recordId) {
-          recordUrl = `/record/${params.recordId}?format=json`;
+          const recId = validateNumber(params.recordId, "recordId", 1, 99999999);
+          recordUrl = `/record/${recId}?format=json`;
         } else {
           throw new Error("Must provide either inspireId or recordId");
         }
 
         if (params.table) {
-          recordUrl += `&table=${encodeURIComponent(params.table)}`;
+          // Limit table name length
+          recordUrl += `&table=${encodeURIComponent(params.table.slice(0, 100))}`;
         }
 
         const data = await fetchHEPData(recordUrl);
@@ -1049,14 +1409,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "update_database": {
-        const params = args as any;
+        interface UpdateDatabaseParams {
+          checkOnly?: boolean;
+          collaboration?: "ATLAS" | "CMS" | "all";
+          since?: string;
+        }
+        const params = args as UpdateDatabaseParams;
 
-        // Search for recent Higgs results
-        const collaboration = params.collaboration || "all";
-        const since = params.since || "2023-01-01";
+        // Whitelist and validate
+        const allowedCollabs = ["ATLAS", "CMS", "all"];
+        const collaboration = params.collaboration && allowedCollabs.includes(params.collaboration)
+          ? params.collaboration
+          : "all";
 
-        const searchResults: any[] = [];
+        // Validate date format
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        const since = params.since && dateRegex.test(params.since) ? params.since : "2023-01-01";
 
+        const searchResults: unknown[] = [];
         const collabs = collaboration === "all" ? ["ATLAS", "CMS"] : [collaboration];
 
         for (const collab of collabs) {
@@ -1064,14 +1434,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const searchUrl = `/search/?q=${encodeURIComponent(query)}&collaboration=${collab}&format=json&size=100`;
 
           try {
-            const results = await fetchHEPData(searchUrl);
+            const results = await fetchHEPData(searchUrl) as { results?: unknown[] };
             if (results.results) {
-              searchResults.push(...results.results.map((r: any) => ({
-                ...r,
+              searchResults.push(...results.results.map((r) => ({
+                ...(r as object),
                 collaboration: collab
               })));
             }
-          } catch (e) {
+          } catch {
             // Continue on error
           }
         }
@@ -1093,9 +1463,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_sm_predictions": {
-        const params = args as any;
-        const mass = params?.mass || 125.09;
-        const sqrts = params?.sqrts || 13;
+        interface SMPredictionsParams {
+          mass?: number;
+          sqrts?: 7 | 8 | 13 | 13.6 | 14;
+        }
+        const params = args as SMPredictionsParams;
+
+        const mass = validateMass(params.mass);
+        const allowedEnergies = [7, 8, 13, 13.6, 14];
+        const sqrts = params.sqrts && allowedEnergies.includes(params.sqrts) ? params.sqrts : 13;
 
         // These are approximate SM predictions - actual values from Lilith grids
         const predictions = {
@@ -1135,8 +1511,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "get_version_info": {
         const versionFile = path.join(DATA_DIR, "version");
         let dbVersion = "unknown";
-        if (fs.existsSync(versionFile)) {
-          dbVersion = fs.readFileSync(versionFile, "utf-8").trim();
+        try {
+          const content = await fs.readFile(versionFile, "utf-8");
+          dbVersion = content.trim();
+        } catch {
+          // File doesn't exist, use default
         }
 
         return {
@@ -1155,31 +1534,57 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "scan_1d": {
-        const params = args as any;
-        const { param, fixedParams } = params;
+        interface ScanParamConfig {
+          name: string;
+          min: number;
+          max: number;
+          steps: number;
+        }
+        const params = args as { param: ScanParamConfig; fixedParams?: CouplingParams };
+        const { param, fixedParams = {} } = params;
 
-        const results: { value: number; likelihood: number }[] = [];
+        // Validate scan parameters
+        validateNumber(param.min, "param.min", -100, 100);
+        validateNumber(param.max, "param.max", -100, 100);
+        validateNumber(param.steps, "param.steps", 1, 1000);
+
+        if (param.min >= param.max) {
+          throw new Error("param.min must be less than param.max");
+        }
+
         const step = (param.max - param.min) / (param.steps - 1);
 
-        for (let i = 0; i < param.steps; i++) {
-          const value = param.min + i * step;
-          const couplings = { ...fixedParams, [param.name]: value };
+        // Generate scan points
+        const scanPoints = Array.from({ length: param.steps }, (_, i) => ({
+          index: i,
+          value: param.min + i * step
+        }));
 
-          const xmlInput = generateReducedCouplingsXML(couplings);
-          const tmpFile = path.join(LILITH_DIR, `tmp_scan_${i}.xml`);
-          fs.writeFileSync(tmpFile, xmlInput);
+        // Run scans in parallel with concurrency limit
+        const scanResults = await parallelLimit(
+          scanPoints,
+          MAX_CONCURRENT_SCANS,
+          async (point) => {
+            const couplings = { ...fixedParams, [param.name]: point.value };
+            const xmlInput = generateReducedCouplingsXML(couplings);
+            const tmpFile = generateTempFilename(`scan1d_${point.index}`);
 
-          try {
-            const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-s"]);
-            fs.unlinkSync(tmpFile);
-
-            const match = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
-            if (match) {
-              results.push({ value, likelihood: parseFloat(match[1]) });
+            await fs.writeFile(tmpFile, xmlInput);
+            try {
+              const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-s"]);
+              const match = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
+              return match ? { value: point.value, likelihood: parseFloat(match[1]) } : null;
+            } finally {
+              await cleanupTempFile(tmpFile);
             }
-          } catch (e) {
-            fs.unlinkSync(tmpFile);
           }
+        );
+
+        // Filter out failed results
+        const results = scanResults.filter((r): r is { value: number; likelihood: number } => r !== null);
+
+        if (results.length === 0) {
+          throw new Error("All scan points failed");
         }
 
         // Find minimum and compute delta chi2
@@ -1203,40 +1608,73 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "scan_2d": {
-        const params = args as any;
-        const { param1, param2, fixedParams } = params;
+        interface ScanParamConfig {
+          name: string;
+          min: number;
+          max: number;
+          steps: number;
+        }
+        const params = args as { param1: ScanParamConfig; param2: ScanParamConfig; fixedParams?: CouplingParams };
+        const { param1, param2, fixedParams = {} } = params;
 
-        const results: { x: number; y: number; likelihood: number }[] = [];
+        // Validate scan parameters
+        validateNumber(param1.min, "param1.min", -100, 100);
+        validateNumber(param1.max, "param1.max", -100, 100);
+        validateNumber(param1.steps, "param1.steps", 1, 100);
+        validateNumber(param2.min, "param2.min", -100, 100);
+        validateNumber(param2.max, "param2.max", -100, 100);
+        validateNumber(param2.steps, "param2.steps", 1, 100);
+
+        if (param1.min >= param1.max || param2.min >= param2.max) {
+          throw new Error("min must be less than max for both parameters");
+        }
+
         const step1 = (param1.max - param1.min) / (param1.steps - 1);
         const step2 = (param2.max - param2.min) / (param2.steps - 1);
 
+        // Generate all scan points
+        const scanPoints: { i: number; j: number; val1: number; val2: number }[] = [];
         for (let i = 0; i < param1.steps; i++) {
           for (let j = 0; j < param2.steps; j++) {
-            const val1 = param1.min + i * step1;
-            const val2 = param2.min + j * step2;
+            scanPoints.push({
+              i,
+              j,
+              val1: param1.min + i * step1,
+              val2: param2.min + j * step2
+            });
+          }
+        }
 
+        // Run scans in parallel with concurrency limit
+        const scanResults = await parallelLimit(
+          scanPoints,
+          MAX_CONCURRENT_SCANS,
+          async (point) => {
             const couplings = {
               ...fixedParams,
-              [param1.name]: val1,
-              [param2.name]: val2
+              [param1.name]: point.val1,
+              [param2.name]: point.val2
             };
 
             const xmlInput = generateReducedCouplingsXML(couplings);
-            const tmpFile = path.join(LILITH_DIR, `tmp_scan2d_${i}_${j}.xml`);
-            fs.writeFileSync(tmpFile, xmlInput);
+            const tmpFile = generateTempFilename(`scan2d_${point.i}_${point.j}`);
 
+            await fs.writeFile(tmpFile, xmlInput);
             try {
               const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-s"]);
-              fs.unlinkSync(tmpFile);
-
               const match = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
-              if (match) {
-                results.push({ x: val1, y: val2, likelihood: parseFloat(match[1]) });
-              }
-            } catch (e) {
-              fs.unlinkSync(tmpFile);
+              return match ? { x: point.val1, y: point.val2, likelihood: parseFloat(match[1]) } : null;
+            } finally {
+              await cleanupTempFile(tmpFile);
             }
           }
+        );
+
+        // Filter out failed results
+        const results = scanResults.filter((r): r is { x: number; y: number; likelihood: number } => r !== null);
+
+        if (results.length === 0) {
+          throw new Error("All scan points failed");
         }
 
         const minL = Math.min(...results.map(r => r.likelihood));
@@ -1258,19 +1696,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "analyze_2hdm": {
-        const params = args as any;
-        const { type, tanBeta, sinBetaMinusAlpha, mass = 125.09 } = params;
+        interface TwoHDMParams {
+          type: "I" | "II" | "L" | "F";
+          tanBeta: number;
+          sinBetaMinusAlpha: number;
+          mass?: number;
+        }
+        const params = args as unknown as TwoHDMParams;
+
+        // Validate 2HDM type
+        const allowedTypes = ["I", "II", "L", "F"];
+        if (!allowedTypes.includes(params.type)) {
+          throw new Error(`Invalid 2HDM type. Allowed: ${allowedTypes.join(", ")}`);
+        }
+
+        // Validate numeric parameters
+        const tanBeta = validateNumber(params.tanBeta, "tanBeta", 0.1, 100);
+        const sinBetaMinusAlpha = validateNumber(params.sinBetaMinusAlpha, "sinBetaMinusAlpha", -1, 1);
+        const mass = validateMass(params.mass);
 
         const cosBetaMinusAlpha = Math.sqrt(1 - sinBetaMinusAlpha ** 2);
-        const sinBeta = tanBeta / Math.sqrt(1 + tanBeta ** 2);
-        const cosBeta = 1 / Math.sqrt(1 + tanBeta ** 2);
 
         // Reduced couplings in alignment limit approach
-        let CV = sinBetaMinusAlpha;
-        let Ct, Cb, Ctau;
+        const CV = sinBetaMinusAlpha;
+        let Ct: number, Cb: number, Ctau: number;
 
         // Type-dependent fermion couplings
-        switch (type) {
+        switch (params.type) {
           case "I":
             Ct = sinBetaMinusAlpha + cosBetaMinusAlpha / tanBeta;
             Cb = Ct;
@@ -1291,8 +1743,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             Cb = sinBetaMinusAlpha - cosBetaMinusAlpha * tanBeta;
             Ctau = Ct;
             break;
-          default:
-            throw new Error(`Unknown 2HDM type: ${type}`);
         }
 
         // Compute likelihood for these couplings
@@ -1306,39 +1756,48 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           Cc: Ct
         });
 
-        const tmpFile = path.join(LILITH_DIR, "tmp_2hdm.xml");
-        fs.writeFileSync(tmpFile, xmlInput);
+        const tmpFile = generateTempFilename("2hdm");
+        await fs.writeFile(tmpFile, xmlInput);
 
-        const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list"]);
-        fs.unlinkSync(tmpFile);
+        try {
+          const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list"]);
+          const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
 
-        const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
-
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              model: `2HDM Type-${type}`,
-              parameters: {
-                tanBeta,
-                sinBetaMinusAlpha,
-                cosBetaMinusAlpha
-              },
-              reducedCouplings: {
-                CV,
-                Ct,
-                Cb,
-                Ctau
-              },
-              likelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null
-            }, null, 2)
-          }]
-        };
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                model: `2HDM Type-${params.type}`,
+                parameters: {
+                  tanBeta,
+                  sinBetaMinusAlpha,
+                  cosBetaMinusAlpha
+                },
+                reducedCouplings: {
+                  CV,
+                  Ct,
+                  Cb,
+                  Ctau
+                },
+                likelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null
+              }, null, 2)
+            }]
+          };
+        } finally {
+          await cleanupTempFile(tmpFile);
+        }
       }
 
       case "analyze_singlet_extension": {
-        const params = args as any;
-        const { mixingAngle, BRinv = 0 } = params;
+        interface SingletParams {
+          mixingAngle: number;
+          BRinv?: number;
+        }
+        const params = args as unknown as SingletParams;
+
+        // Validate parameters
+        const mixingAngle = validateNumber(params.mixingAngle, "mixingAngle", -Math.PI, Math.PI);
+        const BRinv = validateBranchingRatio(params.BRinv, "BRinv");
 
         // In singlet extension, all SM couplings scale by cos(mixing angle)
         const cosMix = Math.cos(mixingAngle);
@@ -1346,42 +1805,51 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const xmlInput = generateReducedCouplingsXML({
           CV: cosMix,
           CF: cosMix,
-          BRinv
+          BRinv: Number.isNaN(BRinv) ? 0 : BRinv
         });
 
-        const tmpFile = path.join(LILITH_DIR, "tmp_singlet.xml");
-        fs.writeFileSync(tmpFile, xmlInput);
+        const tmpFile = generateTempFilename("singlet");
+        await fs.writeFile(tmpFile, xmlInput);
 
-        const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list"]);
-        fs.unlinkSync(tmpFile);
+        try {
+          const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list"]);
+          const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
 
-        const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
-
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              model: "Higgs Singlet Extension",
-              parameters: {
-                mixingAngle,
-                mixingAngleDegrees: mixingAngle * 180 / Math.PI,
-                BRinv
-              },
-              reducedCouplings: {
-                C: cosMix // Universal scaling
-              },
-              likelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null
-            }, null, 2)
-          }]
-        };
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                model: "Higgs Singlet Extension",
+                parameters: {
+                  mixingAngle,
+                  mixingAngleDegrees: mixingAngle * 180 / Math.PI,
+                  BRinv: Number.isNaN(BRinv) ? 0 : BRinv
+                },
+                reducedCouplings: {
+                  C: cosMix // Universal scaling
+                },
+                likelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null
+              }, null, 2)
+            }]
+          };
+        } finally {
+          await cleanupTempFile(tmpFile);
+        }
       }
 
       case "compute_pvalue": {
-        const params = args as any;
-        const { likelihood, ndf, reference = "SM" } = params;
+        interface PValueParams {
+          likelihood: number;
+          ndf: number;
+          reference?: "SM" | "bestfit";
+        }
+        const params = args as unknown as PValueParams;
 
-        // Chi-square p-value calculation would require scipy
-        // Return the delta chi2 and reference info
+        // Validate parameters
+        const likelihood = validateNumber(params.likelihood, "likelihood", 0, 1e10);
+        const ndf = validateNumber(params.ndf, "ndf", 1, 1000);
+        const reference = params.reference === "bestfit" ? "bestfit" : "SM";
+
         return {
           content: [{
             type: "text",
@@ -1396,51 +1864,66 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "convert_to_signal_strength": {
-        const params = args as any;
+        const params = args as CouplingParams;
 
         const xmlInput = generateReducedCouplingsXML(params);
-        const tmpFile = path.join(LILITH_DIR, "tmp_convert.xml");
-        fs.writeFileSync(tmpFile, xmlInput);
+        const tmpFile = generateTempFilename("convert");
+        await fs.writeFile(tmpFile, xmlInput);
 
-        const output = await runLilith([
-          "run_lilith.py",
-          tmpFile,
-          "data/latest.list",
-          "-m", path.join(LILITH_DIR, "tmp_mu_output.xml")
-        ]);
+        const muFile = generateTempFilename("mu_output");
 
-        fs.unlinkSync(tmpFile);
+        try {
+          const output = await runLilith([
+            "run_lilith.py",
+            tmpFile,
+            "data/latest.list",
+            "-m", muFile
+          ]);
 
-        // Read the signal strengths output
-        const muFile = path.join(LILITH_DIR, "tmp_mu_output.xml");
-        let muContent = "";
-        if (fs.existsSync(muFile)) {
-          muContent = fs.readFileSync(muFile, "utf-8");
-          fs.unlinkSync(muFile);
+          // Read the signal strengths output
+          let muContent = "";
+          try {
+            muContent = await fs.readFile(muFile, "utf-8");
+          } catch {
+            // File might not exist
+          }
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                inputCouplings: params,
+                signalStrengthsXML: muContent,
+                rawOutput: output
+              }, null, 2)
+            }]
+          };
+        } finally {
+          await cleanupTempFile(tmpFile);
+          await cleanupTempFile(muFile);
         }
-
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              inputCouplings: params,
-              signalStrengthsXML: muContent,
-              rawOutput: output
-            }, null, 2)
-          }]
-        };
       }
 
       case "validate_input": {
-        const params = args as any;
-        const { xml } = params;
+        interface ValidateInputParams {
+          xml: string;
+        }
+        const params = args as unknown as ValidateInputParams;
 
-        const tmpFile = path.join(LILITH_DIR, "tmp_validate.xml");
-        fs.writeFileSync(tmpFile, xml);
+        if (!params.xml || typeof params.xml !== "string") {
+          throw new Error("xml is required and must be a string");
+        }
+
+        // Limit XML size to prevent DoS
+        if (params.xml.length > 100000) {
+          throw new Error("XML input too large (max 100KB)");
+        }
+
+        const tmpFile = generateTempFilename("validate");
+        await fs.writeFile(tmpFile, params.xml);
 
         try {
-          const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-s"]);
-          fs.unlinkSync(tmpFile);
+          await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-s"]);
 
           return {
             content: [{
@@ -1451,32 +1934,44 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               }, null, 2)
             }]
           };
-        } catch (e: any) {
-          fs.unlinkSync(tmpFile);
-
+        } catch (e: unknown) {
+          const errorMessage = e instanceof Error ? e.message : "Unknown error";
           return {
             content: [{
               type: "text",
               text: JSON.stringify({
                 valid: false,
-                error: e.message
+                error: errorMessage
               }, null, 2)
             }]
           };
+        } finally {
+          await cleanupTempFile(tmpFile);
         }
       }
 
       // CERN Open Data Portal Tools
       case "search_cern_opendata": {
-        const params = args as any;
+        interface CERNSearchParams {
+          query?: string;
+          experiment?: "ATLAS" | "CMS" | "ALICE" | "LHCb";
+          type?: "Dataset" | "Software" | "Documentation" | "Environment";
+        }
+        const params = args as CERNSearchParams;
+
+        // Whitelist allowed values
+        const allowedExperiments = ["ATLAS", "CMS", "ALICE", "LHCb"];
+        const allowedTypes = ["Dataset", "Software", "Documentation", "Environment"];
 
         const queryParts: string[] = [];
-        queryParts.push(`q=${encodeURIComponent(params.query || "Higgs")}`);
+        // Limit query length
+        const query = params.query?.slice(0, 200) || "Higgs";
+        queryParts.push(`q=${encodeURIComponent(query)}`);
 
-        if (params.experiment) {
+        if (params.experiment && allowedExperiments.includes(params.experiment)) {
           queryParts.push(`experiment=${params.experiment}`);
         }
-        if (params.type) {
+        if (params.type && allowedTypes.includes(params.type)) {
           queryParts.push(`type=${params.type}`);
         }
         queryParts.push("size=50");
@@ -1496,9 +1991,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_cern_opendata_record": {
-        const params = args as any;
-        const { recid } = params;
+        interface CERNRecordParams {
+          recid: number;
+        }
+        const params = args as unknown as CERNRecordParams;
 
+        const recid = validateNumber(params.recid, "recid", 1, 99999999);
         const data = await fetchCERNOpenData(`/${recid}`);
 
         return {
@@ -1514,16 +2012,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "list_cern_opendata_files": {
-        const params = args as any;
-        const { recid, filterPattern } = params;
+        interface CERNFilesParams {
+          recid: number;
+          filterPattern?: string;
+        }
+        const params = args as unknown as CERNFilesParams;
 
-        const data = await fetchCERNOpenData(`/${recid}`);
+        const recid = validateNumber(params.recid, "recid", 1, 99999999);
+        const data = await fetchCERNOpenData(`/${recid}`) as { metadata?: { files?: Array<{ key?: string; filename?: string; size?: number; checksum?: string; uri?: string }> } };
 
         let files = data?.metadata?.files || [];
 
-        if (filterPattern) {
-          const regex = new RegExp(filterPattern);
-          files = files.filter((f: any) => regex.test(f.key || f.filename));
+        if (params.filterPattern) {
+          // Use safe regex to prevent ReDoS
+          const regex = safeRegex(params.filterPattern);
+          files = files.filter((f) => regex.test(f.key || f.filename || ""));
         }
 
         return {
@@ -1533,7 +2036,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               source: "CERN Open Data Portal",
               recordId: recid,
               totalFiles: files.length,
-              files: files.map((f: any) => ({
+              files: files.map((f) => ({
                 name: f.key || f.filename,
                 size: f.size,
                 checksum: f.checksum,
@@ -1545,10 +2048,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_latest_higgs_data": {
-        const params = args as any;
-        const { channel = "all", collaboration = "all", since } = params;
+        interface LatestHiggsParams {
+          channel?: "gammagamma" | "ZZ" | "WW" | "bb" | "tautau" | "mumu" | "invisible" | "all";
+          collaboration?: "ATLAS" | "CMS" | "combined" | "all";
+          since?: string;
+        }
+        const params = args as LatestHiggsParams;
 
-        const results: any = {
+        // Whitelist allowed values
+        const allowedChannels = ["gammagamma", "ZZ", "WW", "bb", "tautau", "mumu", "invisible", "all"];
+        const allowedCollabs = ["ATLAS", "CMS", "combined", "all"];
+
+        const channel = params.channel && allowedChannels.includes(params.channel) ? params.channel : "all";
+        const collaboration = params.collaboration && allowedCollabs.includes(params.collaboration) ? params.collaboration : "all";
+        const since = params.since;
+
+        interface HiggsSearchResults {
+          hepdata: unknown[];
+          cernOpenData: unknown[];
+          timestamp: string;
+          hepdataError?: string;
+          cernOpenDataError?: string;
+        }
+        const results: HiggsSearchResults = {
           hepdata: [],
           cernOpenData: [],
           timestamp: new Date().toISOString()
@@ -1564,16 +2086,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           for (const collab of collabs) {
             if (collab === "combined") continue;
             const searchUrl = `/search/?q=${encodeURIComponent(hepQuery)}&collaboration=${collab}&format=json&size=20`;
-            const hepResults = await fetchHEPData(searchUrl);
+            const hepResults = await fetchHEPData(searchUrl) as { results?: unknown[] };
             if (hepResults.results) {
-              results.hepdata.push(...hepResults.results.map((r: any) => ({
-                ...r,
+              results.hepdata.push(...hepResults.results.map((r) => ({
+                ...(r as object),
                 collaboration: collab
               })));
             }
           }
         } catch (e) {
-          results.hepdataError = `HEPData search failed: ${e}`;
+          results.hepdataError = `HEPData search failed: ${e instanceof Error ? e.message : "unknown error"}`;
         }
 
         // Search CERN Open Data
@@ -1586,12 +2108,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             queryParts.push(`experiment=${collaboration}`);
           }
 
-          const openDataResults = await fetchCERNOpenData(`?${queryParts.join("&")}`);
+          const openDataResults = await fetchCERNOpenData(`?${queryParts.join("&")}`) as { hits?: { hits?: unknown[] } };
           if (openDataResults.hits?.hits) {
             results.cernOpenData = openDataResults.hits.hits;
           }
         } catch (e) {
-          results.cernOpenDataError = `CERN Open Data search failed: ${e}`;
+          results.cernOpenDataError = `CERN Open Data search failed: ${e instanceof Error ? e.message : "unknown error"}`;
         }
 
         return {
@@ -1612,13 +2134,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Don't expose stack traces to users - only return the error message
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+
     return {
       content: [{
         type: "text",
         text: JSON.stringify({
-          error: error.message,
-          stack: error.stack
+          error: errorMessage
         }, null, 2)
       }],
       isError: true
@@ -1630,8 +2154,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
  * Main entry point
  */
 async function main() {
-  // Verify Lilith installation
-  if (!fs.existsSync(LILITH_DIR)) {
+  // Verify Lilith installation using sync fs for startup check
+  if (!fsSync.existsSync(LILITH_DIR)) {
     console.error(`Lilith directory not found: ${LILITH_DIR}`);
     console.error("Set LILITH_DIR environment variable to point to Lilith installation");
     process.exit(1);
@@ -1644,7 +2168,8 @@ async function main() {
   console.error(`Lilith directory: ${LILITH_DIR}`);
 }
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
+main().catch((error: unknown) => {
+  const errorMessage = error instanceof Error ? error.message : "Unknown error";
+  console.error("Fatal error:", errorMessage);
   process.exit(1);
 });
