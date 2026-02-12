@@ -11,6 +11,10 @@ import {
   generateReducedCouplingsXML,
   generateSignalStrengthsXML,
   compute2HDMCouplings,
+  lnGamma,
+  lowerIncompleteGamma,
+  chi2CDF,
+  chi2PValue,
   ALLOWED_PRODUCTION_MODES,
   ALLOWED_DECAY_MODES,
 } from "./utils.js";
@@ -446,6 +450,112 @@ describe("compute2HDMCouplings", () => {
     const sinBA = 0.95;
     const result = compute2HDMCouplings("I", 2, sinBA);
     expect(result.CV).toBe(sinBA);
+  });
+
+  it("handles sinBetaMinusAlpha = 1 without NaN", () => {
+    const result = compute2HDMCouplings("II", 5, 1.0);
+    expect(Number.isNaN(result.Ct)).toBe(false);
+    expect(Number.isNaN(result.Cb)).toBe(false);
+    expect(Number.isNaN(result.Ctau)).toBe(false);
+  });
+
+  it("handles sinBetaMinusAlpha slightly > 1 from floating point", () => {
+    // 1 + epsilon can happen from prior computation
+    const result = compute2HDMCouplings("I", 2, 1.0000000000000002);
+    expect(Number.isNaN(result.Ct)).toBe(false);
+    expect(Number.isNaN(result.Cb)).toBe(false);
+  });
+});
+
+// ── lnGamma ──────────────────────────────────────────────
+
+describe("lnGamma", () => {
+  it("computes ln(Γ(1)) = 0", () => {
+    expect(lnGamma(1)).toBeCloseTo(0, 10);
+  });
+
+  it("computes ln(Γ(2)) = ln(1!) = 0", () => {
+    expect(lnGamma(2)).toBeCloseTo(0, 10);
+  });
+
+  it("computes ln(Γ(5)) = ln(4!) = ln(24)", () => {
+    expect(lnGamma(5)).toBeCloseTo(Math.log(24), 8);
+  });
+
+  it("computes ln(Γ(0.5)) = ln(√π)", () => {
+    expect(lnGamma(0.5)).toBeCloseTo(Math.log(Math.sqrt(Math.PI)), 8);
+  });
+
+  it("handles large values", () => {
+    // Γ(10) = 9! = 362880
+    expect(lnGamma(10)).toBeCloseTo(Math.log(362880), 6);
+  });
+});
+
+// ── lowerIncompleteGamma ─────────────────────────────────
+
+describe("lowerIncompleteGamma", () => {
+  it("returns 0 for x = 0", () => {
+    expect(lowerIncompleteGamma(1, 0)).toBe(0);
+  });
+
+  it("returns 0 for x < 0", () => {
+    expect(lowerIncompleteGamma(1, -1)).toBe(0);
+  });
+
+  it("converges to 1 for large x", () => {
+    expect(lowerIncompleteGamma(1, 100)).toBeCloseTo(1, 10);
+  });
+
+  it("P(1, 1) = 1 - e^(-1) ≈ 0.6321", () => {
+    // For a=1 (exponential distribution), P(1,x) = 1 - e^(-x)
+    expect(lowerIncompleteGamma(1, 1)).toBeCloseTo(1 - Math.exp(-1), 8);
+  });
+});
+
+// ── chi2CDF ──────────────────────────────────────────────
+
+describe("chi2CDF", () => {
+  it("returns 0 for x <= 0", () => {
+    expect(chi2CDF(0, 2)).toBe(0);
+    expect(chi2CDF(-1, 2)).toBe(0);
+  });
+
+  it("chi2CDF(x, 2) = 1 - e^(-x/2) for k=2", () => {
+    // For k=2 degrees of freedom, CDF has a closed form
+    const x = 5;
+    expect(chi2CDF(x, 2)).toBeCloseTo(1 - Math.exp(-x / 2), 8);
+  });
+
+  it("CDF at 3.84 with 1 dof ≈ 0.95 (95% CL)", () => {
+    expect(chi2CDF(3.84, 1)).toBeCloseTo(0.95, 2);
+  });
+
+  it("CDF at 5.99 with 2 dof ≈ 0.95 (95% CL, 2D)", () => {
+    expect(chi2CDF(5.99, 2)).toBeCloseTo(0.95, 2);
+  });
+});
+
+// ── chi2PValue ───────────────────────────────────────────
+
+describe("chi2PValue", () => {
+  it("p-value = 1 - CDF", () => {
+    const pval = chi2PValue(3.84, 1);
+    expect(pval).toBeCloseTo(0.05, 2);
+  });
+
+  it("p-value of 0 chi2 is 1", () => {
+    expect(chi2PValue(0, 1)).toBe(1);
+  });
+
+  it("large chi2 gives small p-value", () => {
+    const pval = chi2PValue(100, 1);
+    expect(pval).toBeLessThan(1e-10);
+  });
+
+  it("2σ threshold: chi2=4 gives p ≈ 0.046 for 1 dof", () => {
+    const pval = chi2PValue(4, 1);
+    expect(pval).toBeCloseTo(0.0455, 2);
   });
 });
 

@@ -297,7 +297,8 @@ export function compute2HDMCouplings(
   tanBeta: number,
   sinBetaMinusAlpha: number
 ): { CV: number; Ct: number; Cb: number; Ctau: number } {
-  const cosBetaMinusAlpha = Math.sqrt(1 - sinBetaMinusAlpha ** 2);
+  // Clamp to avoid NaN from floating-point imprecision when sinBetaMinusAlpha ≈ ±1
+  const cosBetaMinusAlpha = Math.sqrt(Math.max(0, 1 - sinBetaMinusAlpha ** 2));
   const CV = sinBetaMinusAlpha;
   let Ct: number, Cb: number, Ctau: number;
 
@@ -325,4 +326,75 @@ export function compute2HDMCouplings(
   }
 
   return { CV, Ct, Cb, Ctau };
+}
+
+/**
+ * Approximate the regularized lower incomplete gamma function P(a, x)
+ * using a series expansion. This is used for chi-square CDF computation.
+ */
+export function lowerIncompleteGamma(a: number, x: number): number {
+  if (x < 0) return 0;
+  if (x === 0) return 0;
+
+  // Use series expansion: P(a,x) = e^(-x) * x^a * sum(x^n / gamma(a+n+1))
+  const lnGammaA = lnGamma(a);
+  let sum = 0;
+  let term = 1 / a;
+  sum = term;
+
+  for (let n = 1; n < 200; n++) {
+    term *= x / (a + n);
+    sum += term;
+    if (Math.abs(term) < 1e-14 * Math.abs(sum)) break;
+  }
+
+  const result = Math.exp(-x + a * Math.log(x) - lnGammaA) * sum;
+  return Math.min(Math.max(result, 0), 1);
+}
+
+/**
+ * Log-gamma function using Lanczos approximation
+ */
+export function lnGamma(z: number): number {
+  const g = 7;
+  const coef = [
+    0.99999999999980993,
+    676.5203681218851,
+    -1259.1392167224028,
+    771.32342877765313,
+    -176.61502916214059,
+    12.507343278686905,
+    -0.13857109526572012,
+    9.9843695780195716e-6,
+    1.5056327351493116e-7,
+  ];
+
+  if (z < 0.5) {
+    // Reflection formula
+    return Math.log(Math.PI / Math.sin(Math.PI * z)) - lnGamma(1 - z);
+  }
+
+  z -= 1;
+  let x = coef[0];
+  for (let i = 1; i < g + 2; i++) {
+    x += coef[i] / (z + i);
+  }
+  const t = z + g + 0.5;
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+}
+
+/**
+ * Chi-square CDF: P(chi2 <= x | k degrees of freedom)
+ */
+export function chi2CDF(x: number, k: number): number {
+  if (x <= 0) return 0;
+  return lowerIncompleteGamma(k / 2, x / 2);
+}
+
+/**
+ * Compute p-value from chi-square statistic
+ * p = 1 - CDF(chi2, ndf) = probability of observing a value >= chi2
+ */
+export function chi2PValue(chi2: number, ndf: number): number {
+  return 1 - chi2CDF(chi2, ndf);
 }

@@ -39,6 +39,7 @@ import {
   generateReducedCouplingsXML,
   generateSignalStrengthsXML,
   compute2HDMCouplings,
+  chi2PValue,
   ALLOWED_PRODUCTION_MODES,
   ALLOWED_DECAY_MODES,
 } from "./utils.js";
@@ -69,6 +70,9 @@ const MAX_REDIRECTS = 5;
 
 // Maximum subprocess output size (1MB)
 const MAX_SUBPROCESS_OUTPUT = 1024 * 1024;
+
+// Subprocess timeout (60 seconds)
+const SUBPROCESS_TIMEOUT_MS = 60000;
 
 // Simple in-memory cache with TTL
 interface CacheEntry<T> {
@@ -170,6 +174,15 @@ async function runLilith(args: string[], input?: string): Promise<string> {
     proc.on("error", (err) => {
       reject(err);
     });
+
+    // Kill process if it exceeds timeout
+    const timer = setTimeout(() => {
+      proc.kill();
+      reject(new Error(`Lilith process timed out after ${SUBPROCESS_TIMEOUT_MS / 1000}s`));
+    }, SUBPROCESS_TIMEOUT_MS);
+
+    proc.on("close", () => clearTimeout(timer));
+    proc.on("error", () => clearTimeout(timer));
   });
 }
 
@@ -1199,17 +1212,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const allowedEnergies = [7, 8, 13, 13.6, 14];
         const sqrts = params.sqrts && allowedEnergies.includes(params.sqrts) ? params.sqrts : 13;
 
-        // These are approximate SM predictions - actual values from Lilith grids
+        // SM predictions from LHC Higgs Cross Section Working Group (YR4 + Run 3 updates)
+        // Cross sections at mH = 125.09 GeV in pb
+        const xsecTable: Record<number, Record<string, number>> = {
+          7:    { ggH: 15.13, VBF: 1.22, WH: 0.58, ZH: 0.34, ttH: 0.09, bbH: 0.16, tH: 0.01 },
+          8:    { ggH: 19.27, VBF: 1.58, WH: 0.70, ZH: 0.42, ttH: 0.13, bbH: 0.20, tH: 0.01 },
+          13:   { ggH: 48.58, VBF: 3.78, WH: 1.37, ZH: 0.88, ttH: 0.51, bbH: 0.49, tH: 0.07 },
+          13.6: { ggH: 52.23, VBF: 4.08, WH: 1.50, ZH: 0.97, ttH: 0.57, bbH: 0.53, tH: 0.08 },
+          14:   { ggH: 54.67, VBF: 4.28, WH: 1.60, ZH: 1.04, ttH: 0.61, bbH: 0.56, tH: 0.08 },
+        };
+
+        const crossSections = xsecTable[sqrts] || xsecTable[13];
+
         const predictions = {
           mass,
           sqrts,
           crossSections: {
-            ggH: sqrts === 13 ? 48.58 : sqrts === 8 ? 19.27 : 15.13, // pb
-            VBF: sqrts === 13 ? 3.78 : sqrts === 8 ? 1.58 : 1.22,
-            WH: sqrts === 13 ? 1.37 : sqrts === 8 ? 0.70 : 0.58,
-            ZH: sqrts === 13 ? 0.88 : sqrts === 8 ? 0.42 : 0.34,
-            ttH: sqrts === 13 ? 0.51 : sqrts === 8 ? 0.13 : 0.09,
-            unit: "pb"
+            ...crossSections,
+            unit: "pb",
           },
           branchingRatios: {
             bb: 0.5809,
@@ -1220,10 +1240,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             ZZ: 0.0264,
             gammagamma: 0.00228,
             Zgamma: 0.00154,
-            mumu: 0.000218
+            mumu: 0.000218,
           },
           totalWidth: 4.07e-3, // GeV
-          note: "Values interpolated from YR4 predictions at mH = 125.09 GeV"
+          note: "Cross sections from LHC HXSWG YR4 (7-14 TeV). 13.6 TeV values extrapolated from Run 3 measurements. BRs are mass-dependent; values shown for mH = 125.09 GeV.",
         };
 
         return {
@@ -1528,6 +1548,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         interface PValueParams {
           likelihood: number;
           ndf: number;
+          smLikelihood?: number;
           reference?: "SM" | "bestfit";
         }
         const params = args as unknown as PValueParams;
@@ -1537,14 +1558,46 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const ndf = validateNumber(params.ndf, "ndf", 1, 1000);
         const reference = params.reference === "bestfit" ? "bestfit" : "SM";
 
+        // Compute delta chi-square relative to reference
+        const smLikelihood = params.smLikelihood !== undefined
+          ? validateNumber(params.smLikelihood, "smLikelihood", 0, 1e10)
+          : 0;
+        const deltaChi2 = reference === "SM" ? likelihood - smLikelihood : likelihood;
+
+        // Compute actual p-value from chi-square distribution
+        const pValue = chi2PValue(Math.max(deltaChi2, 0), ndf);
+
+        // Compute number of sigma
+        // For a chi2 distribution, convert p-value to equivalent Gaussian sigma
+        // Using the approximation: sigma = sqrt(2) * erfinv(1 - pValue)
+        // Simplified: use the common thresholds
+        let sigmaEquivalent: string;
+        if (pValue > 0.3173) sigmaEquivalent = "< 1σ";
+        else if (pValue > 0.0455) sigmaEquivalent = "1-2σ";
+        else if (pValue > 0.0027) sigmaEquivalent = "2-3σ";
+        else if (pValue > 6.3e-5) sigmaEquivalent = "3-4σ";
+        else if (pValue > 5.7e-7) sigmaEquivalent = "4-5σ";
+        else sigmaEquivalent = "> 5σ (discovery-level)";
+
         return {
           content: [{
             type: "text",
             text: JSON.stringify({
-              likelihood,
+              deltaChi2,
               ndf,
+              pValue,
+              sigmaEquivalent,
               reference,
-              note: "P-value calculation: Use chi2 distribution with ndf degrees of freedom. For 68%/95%/99.7% CL in 2D: delta_chi2 = 2.30/5.99/11.83"
+              interpretation: pValue > 0.05
+                ? "Model is compatible with data at 95% CL"
+                : pValue > 0.0027
+                  ? "Model shows tension with data (> 2σ)"
+                  : "Model is strongly disfavored by data (> 3σ)",
+              thresholds: {
+                "1σ (68% CL)": { "1D": 1.00, "2D": 2.30 },
+                "2σ (95% CL)": { "1D": 3.84, "2D": 5.99 },
+                "3σ (99.7% CL)": { "1D": 9.00, "2D": 11.83 },
+              }
             }, null, 2)
           }]
         };
@@ -1848,11 +1901,33 @@ async function main() {
     process.exit(1);
   }
 
+  // Check for run_lilith.py script
+  const lilithScript = path.join(LILITH_DIR, "run_lilith.py");
+  if (!existsSync(lilithScript)) {
+    console.error(`Lilith script not found: ${lilithScript}`);
+    console.error("Ensure run_lilith.py exists in the Lilith directory");
+    process.exit(1);
+  }
+
+  // Verify Python is available
+  try {
+    const proc = spawn(PYTHON_CMD, ["--version"], { timeout: 5000 });
+    await new Promise<void>((resolve, reject) => {
+      proc.on("close", (code) => code === 0 ? resolve() : reject());
+      proc.on("error", reject);
+    });
+  } catch {
+    console.error(`Python not found: ${PYTHON_CMD}`);
+    console.error("Set PYTHON_CMD environment variable to your Python executable");
+    process.exit(1);
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
   console.error("Pythia MCP Server started");
   console.error(`Lilith directory: ${LILITH_DIR}`);
+  console.error(`Python command: ${PYTHON_CMD}`);
 }
 
 main().catch((error: unknown) => {
