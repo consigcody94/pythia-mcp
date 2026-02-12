@@ -1,8 +1,8 @@
 # Dependencies
 node_modules/
 
-# Build output (keep dist for npm package)
-# dist/
+# Build output (included in npm package via "files" in package.json)
+dist/
 
 # IDE
 .idea/

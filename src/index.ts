@@ -22,11 +22,27 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { spawn } from "child_process";
 import * as fs from "fs/promises";
-import * as fsSync from "fs";
+import { existsSync } from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import https from "https";
 import crypto from "crypto";
+import {
+  escapeXml,
+  validateNumber,
+  validateCoupling,
+  validateBranchingRatio,
+  validateMass,
+  safeResolvePath,
+  safeRegex,
+  parallelLimit,
+  generateReducedCouplingsXML,
+  generateSignalStrengthsXML,
+  compute2HDMCouplings,
+  ALLOWED_PRODUCTION_MODES,
+  ALLOWED_DECAY_MODES,
+} from "./utils.js";
+import type { CouplingParams, SignalStrengthParams, ScanParamConfig } from "./utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +63,12 @@ const HTTP_TIMEOUT_MS = 30000;
 
 // Maximum concurrent operations for scans
 const MAX_CONCURRENT_SCANS = 10;
+
+// Maximum HTTP redirect depth
+const MAX_REDIRECTS = 5;
+
+// Maximum subprocess output size (1MB)
+const MAX_SUBPROCESS_OUTPUT = 1024 * 1024;
 
 // Simple in-memory cache with TTL
 interface CacheEntry<T> {
@@ -69,67 +91,25 @@ function getCached<T>(key: string): T | null {
 function setCache<T>(key: string, data: T): void {
   // Limit cache size to prevent memory issues
   if (apiCache.size > 1000) {
-    const oldestKey = apiCache.keys().next().value;
-    if (oldestKey) apiCache.delete(oldestKey);
+    // Prefer evicting expired entries first
+    const now = Date.now();
+    let evicted = false;
+    for (const [k, v] of apiCache) {
+      if (now >= v.expiry) {
+        apiCache.delete(k);
+        evicted = true;
+        break;
+      }
+    }
+    // Fall back to removing the oldest entry by insertion order
+    if (!evicted) {
+      const oldestKey = apiCache.keys().next().value;
+      if (oldestKey) apiCache.delete(oldestKey);
+    }
   }
   apiCache.set(key, { data, expiry: Date.now() + CACHE_TTL_MS });
 }
 
-/**
- * Escape XML special characters to prevent XML injection
- */
-function escapeXml(unsafe: string | number): string {
-  const str = String(unsafe);
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-/**
- * Validate numeric parameter is within acceptable range
- */
-function validateNumber(value: unknown, name: string, min: number, max: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`${name} must be a finite number`);
-  }
-  if (value < min || value > max) {
-    throw new Error(`${name} must be between ${min} and ${max}`);
-  }
-  return value;
-}
-
-/**
- * Validate coupling parameter (typically -10 to 10)
- */
-function validateCoupling(value: unknown, name: string): number {
-  if (value === undefined || value === null) {
-    return NaN; // Will use default
-  }
-  return validateNumber(value, name, -100, 100);
-}
-
-/**
- * Validate branching ratio (0 to 1)
- */
-function validateBranchingRatio(value: unknown, name: string): number {
-  if (value === undefined || value === null) {
-    return NaN;
-  }
-  return validateNumber(value, name, 0, 1);
-}
-
-/**
- * Validate Higgs mass (reasonable range)
- */
-function validateMass(value: unknown): number {
-  if (value === undefined || value === null) {
-    return 125.09; // Default
-  }
-  return validateNumber(value, "mass", 1, 1000);
-}
 
 /**
  * Generate secure random temp filename
@@ -139,77 +119,14 @@ function generateTempFilename(prefix: string): string {
   return path.join(LILITH_DIR, `${prefix}_${randomId}.xml`);
 }
 
-/**
- * Safely resolve and validate a path within a base directory
- * Prevents path traversal attacks
- */
-function safeResolvePath(basePath: string, userPath: string): string {
-  // Normalize and resolve the path
-  const resolved = path.resolve(basePath, userPath);
-  const normalizedBase = path.resolve(basePath);
-
-  // Ensure the resolved path is within the base directory
-  if (!resolved.startsWith(normalizedBase + path.sep) && resolved !== normalizedBase) {
-    throw new Error("Invalid path: access denied");
-  }
-
-  return resolved;
-}
-
-/**
- * Safely compile regex with error handling for ReDoS prevention
- */
-function safeRegex(pattern: string): RegExp {
-  // Limit pattern length
-  if (pattern.length > 500) {
-    throw new Error("Regex pattern too long");
-  }
-
-  // Basic check for dangerous patterns (nested quantifiers)
-  if (/(\+|\*|\{[^}]+\})\s*(\+|\*|\{[^}]+\})|(\([^)]*\))\s*(\+|\*|\{[^}]+\})\s*(\+|\*|\{[^}]+\})/.test(pattern)) {
-    throw new Error("Potentially dangerous regex pattern");
-  }
-
-  try {
-    return new RegExp(pattern);
-  } catch (e) {
-    throw new Error(`Invalid regex pattern: ${e instanceof Error ? e.message : "unknown error"}`);
-  }
-}
-
-/**
- * Run operations concurrently with a limit
- */
-async function parallelLimit<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T, index: number) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let currentIndex = 0;
-
-  async function worker(): Promise<void> {
-    while (currentIndex < items.length) {
-      const index = currentIndex++;
-      results[index] = await fn(items[index], index);
-    }
-  }
-
-  const workers = Array(Math.min(limit, items.length))
-    .fill(null)
-    .map(() => worker());
-
-  await Promise.all(workers);
-  return results;
-}
 
 interface LilithResult {
   likelihood: number;
   ndf: number;
   dbVersion: string;
-  results?: any[];
-  couplings?: any;
-  signalStrengths?: any;
+  results?: Record<string, unknown>[];
+  couplings?: Record<string, unknown>;
+  signalStrengths?: Record<string, unknown>;
 }
 
 /**
@@ -226,11 +143,15 @@ async function runLilith(args: string[], input?: string): Promise<string> {
     let stderr = "";
 
     proc.stdout.on("data", (data) => {
-      stdout += data.toString();
+      if (stdout.length < MAX_SUBPROCESS_OUTPUT) {
+        stdout += data.toString();
+      }
     });
 
     proc.stderr.on("data", (data) => {
-      stderr += data.toString();
+      if (stderr.length < MAX_SUBPROCESS_OUTPUT) {
+        stderr += data.toString();
+      }
     });
 
     if (input) {
@@ -252,165 +173,15 @@ async function runLilith(args: string[], input?: string): Promise<string> {
   });
 }
 
-/**
- * Coupling parameters interface
- */
-interface CouplingParams {
-  mass?: number;
-  CV?: number;
-  CF?: number;
-  Ct?: number;
-  Cb?: number;
-  Cc?: number;
-  Ctau?: number;
-  Cmu?: number;
-  Cg?: number;
-  Cgamma?: number;
-  CZgamma?: number;
-  BRinv?: number;
-  BRundet?: number;
-  precision?: string;
-}
-
-/**
- * Generate XML input for reduced couplings mode with validation and escaping
- */
-function generateReducedCouplingsXML(params: CouplingParams): string {
-  // Validate and sanitize inputs
-  const mass = validateMass(params.mass);
-  const precision = params.precision === "LO" ? "LO" : "BEST-QCD"; // Whitelist allowed values
-
-  // Default to SM values (1.0) if not specified, validate otherwise
-  const cvVal = validateCoupling(params.CV, "CV");
-  const cfVal = validateCoupling(params.CF, "CF");
-  const CV = Number.isNaN(cvVal) ? 1.0 : cvVal;
-  const CF = Number.isNaN(cfVal) ? 1.0 : cfVal;
-
-  const ctVal = validateCoupling(params.Ct, "Ct");
-  const cbVal = validateCoupling(params.Cb, "Cb");
-  const ccVal = validateCoupling(params.Cc, "Cc");
-  const ctauVal = validateCoupling(params.Ctau, "Ctau");
-  const cmuVal = validateCoupling(params.Cmu, "Cmu");
-
-  const Ct = Number.isNaN(ctVal) ? CF : ctVal;
-  const Cb = Number.isNaN(cbVal) ? CF : cbVal;
-  const Cc = Number.isNaN(ccVal) ? CF : ccVal;
-  const Ctau = Number.isNaN(ctauVal) ? CF : ctauVal;
-  const Cmu = Number.isNaN(cmuVal) ? CF : cmuVal;
-
-  const brInvVal = validateBranchingRatio(params.BRinv, "BRinv");
-  const brUndetVal = validateBranchingRatio(params.BRundet, "BRundet");
-  const BRinv = Number.isNaN(brInvVal) ? 0.0 : brInvVal;
-  const BRundet = Number.isNaN(brUndetVal) ? 0.0 : brUndetVal;
-
-  // Build XML with escaped values
-  let xml = `<?xml version="1.0"?>
-<lilithinput>
-<reducedcouplings>
-  <mass>${escapeXml(mass)}</mass>
-
-  <C to="tt">${escapeXml(Ct)}</C>
-  <C to="bb">${escapeXml(Cb)}</C>
-  <C to="cc">${escapeXml(Cc)}</C>
-  <C to="tautau">${escapeXml(Ctau)}</C>
-  <C to="mumu">${escapeXml(Cmu)}</C>
-  <C to="ZZ">${escapeXml(CV)}</C>
-  <C to="WW">${escapeXml(CV)}</C>
-`;
-
-  // Add loop-induced couplings if specified (validate first)
-  if (params.Cg !== undefined) {
-    const cg = validateCoupling(params.Cg, "Cg");
-    if (!Number.isNaN(cg)) {
-      xml += `  <C to="gg">${escapeXml(cg)}</C>\n`;
-    }
-  }
-  if (params.Cgamma !== undefined) {
-    const cgamma = validateCoupling(params.Cgamma, "Cgamma");
-    if (!Number.isNaN(cgamma)) {
-      xml += `  <C to="gammagamma">${escapeXml(cgamma)}</C>\n`;
-    }
-  }
-  if (params.CZgamma !== undefined) {
-    const czgamma = validateCoupling(params.CZgamma, "CZgamma");
-    if (!Number.isNaN(czgamma)) {
-      xml += `  <C to="Zgamma">${escapeXml(czgamma)}</C>\n`;
-    }
-  }
-
-  xml += `
-  <extraBR>
-    <BR to="invisible">${escapeXml(BRinv)}</BR>
-    <BR to="undetected">${escapeXml(BRundet)}</BR>
-  </extraBR>
-
-  <precision>${escapeXml(precision)}</precision>
-</reducedcouplings>
-</lilithinput>`;
-
-  return xml;
-}
-
-/**
- * Signal strengths parameters interface
- */
-interface SignalStrengthParams {
-  mass?: number;
-  signalStrengths: Record<string, number>;
-}
-
-// Whitelist of allowed production and decay modes
-const ALLOWED_PRODUCTION_MODES = new Set(["ggH", "VBF", "WH", "ZH", "ttH", "tH", "bbH"]);
-const ALLOWED_DECAY_MODES = new Set(["gammagamma", "ZZ", "WW", "bb", "tautau", "mumu", "cc", "Zgamma", "gg", "invisible"]);
-
-/**
- * Generate XML input for signal strengths mode with validation and escaping
- */
-function generateSignalStrengthsXML(params: SignalStrengthParams): string {
-  const mass = validateMass(params.mass);
-
-  if (!params.signalStrengths || typeof params.signalStrengths !== "object") {
-    throw new Error("signalStrengths must be an object");
-  }
-
-  let muEntries = "";
-  for (const [key, value] of Object.entries(params.signalStrengths)) {
-    // Validate signal strength value
-    if (typeof value !== "number" || !Number.isFinite(value) || value < -100 || value > 100) {
-      throw new Error(`Invalid signal strength value for ${key}: must be a finite number between -100 and 100`);
-    }
-
-    // Key format: "prod_decay" e.g., "ggH_gammagamma"
-    const parts = key.split("_");
-    if (parts.length !== 2) {
-      throw new Error(`Invalid signal strength key format: ${key}. Expected 'prod_decay' format.`);
-    }
-    const [prod, decay] = parts;
-
-    // Validate production and decay modes against whitelist
-    if (!ALLOWED_PRODUCTION_MODES.has(prod)) {
-      throw new Error(`Invalid production mode: ${prod}. Allowed: ${[...ALLOWED_PRODUCTION_MODES].join(", ")}`);
-    }
-    if (!ALLOWED_DECAY_MODES.has(decay)) {
-      throw new Error(`Invalid decay mode: ${decay}. Allowed: ${[...ALLOWED_DECAY_MODES].join(", ")}`);
-    }
-
-    muEntries += `  <mu prod="${escapeXml(prod)}" decay="${escapeXml(decay)}">${escapeXml(value)}</mu>\n`;
-  }
-
-  return `<?xml version="1.0"?>
-<lilithinput>
-<signalstrengths>
-  <mass>${escapeXml(mass)}</mass>
-${muEntries}
-</signalstrengths>
-</lilithinput>`;
-}
 
 /**
  * Fetch data from HEPData API with timeout and caching
  */
-async function fetchHEPData(endpoint: string): Promise<unknown> {
+async function fetchHEPData(endpoint: string, redirectCount = 0): Promise<unknown> {
+  if (redirectCount > MAX_REDIRECTS) {
+    throw new Error("HEPData API error: too many redirects");
+  }
+
   const cacheKey = `hepdata:${endpoint}`;
   const cached = getCached<unknown>(cacheKey);
   if (cached !== null) {
@@ -423,7 +194,7 @@ async function fetchHEPData(endpoint: string): Promise<unknown> {
     const req = https.get(url, (res) => {
       // Handle redirects
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        fetchHEPData(res.headers.location).then(resolve).catch(reject);
+        fetchHEPData(res.headers.location, redirectCount + 1).then(resolve).catch(reject);
         return;
       }
 
@@ -453,31 +224,15 @@ async function fetchHEPData(endpoint: string): Promise<unknown> {
   });
 }
 
-/**
- * Search HEPData for Higgs signal strength measurements
- */
-async function searchHEPDataHiggs(params: {
-  collaboration?: string;
-  year?: number;
-  decay?: string;
-  production?: string;
-}): Promise<any> {
-  let query = "Higgs signal strength";
-  if (params.decay) query += ` ${params.decay}`;
-  if (params.production) query += ` ${params.production}`;
-
-  let searchUrl = `/search/?q=${encodeURIComponent(query)}&format=json&size=50`;
-  if (params.collaboration) {
-    searchUrl += `&collaboration=${params.collaboration}`;
-  }
-
-  return fetchHEPData(searchUrl);
-}
 
 /**
  * Fetch data from CERN Open Data portal with timeout and caching
  */
-async function fetchCERNOpenData(endpoint: string): Promise<unknown> {
+async function fetchCERNOpenData(endpoint: string, redirectCount = 0): Promise<unknown> {
+  if (redirectCount > MAX_REDIRECTS) {
+    throw new Error("CERN Open Data API error: too many redirects");
+  }
+
   const cacheKey = `cern:${endpoint}`;
   const cached = getCached<unknown>(cacheKey);
   if (cached !== null) {
@@ -490,7 +245,7 @@ async function fetchCERNOpenData(endpoint: string): Promise<unknown> {
     const req = https.get(url, (res) => {
       // Handle redirects
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        fetchCERNOpenData(res.headers.location).then(resolve).catch(reject);
+        fetchCERNOpenData(res.headers.location, redirectCount + 1).then(resolve).catch(reject);
         return;
       }
 
@@ -520,35 +275,6 @@ async function fetchCERNOpenData(endpoint: string): Promise<unknown> {
   });
 }
 
-/**
- * Search CERN Open Data for Higgs-related records
- */
-async function searchCERNOpenData(params: {
-  query?: string;
-  type?: string;
-  experiment?: string;
-}): Promise<any> {
-  let searchUrl = `${CERN_OPENDATA_API}?`;
-  const queryParts: string[] = [];
-
-  if (params.query) {
-    queryParts.push(`q=${encodeURIComponent(params.query)}`);
-  } else {
-    queryParts.push(`q=${encodeURIComponent("Higgs")}`);
-  }
-
-  if (params.type) {
-    queryParts.push(`type=${params.type}`);
-  }
-
-  if (params.experiment) {
-    queryParts.push(`experiment=${params.experiment}`);
-  }
-
-  queryParts.push("size=50");
-
-  return fetchCERNOpenData(`?${queryParts.join("&")}`);
-}
 
 /**
  * Create the MCP server
@@ -1534,12 +1260,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "scan_1d": {
-        interface ScanParamConfig {
-          name: string;
-          min: number;
-          max: number;
-          steps: number;
-        }
         const params = args as { param: ScanParamConfig; fixedParams?: CouplingParams };
         const { param, fixedParams = {} } = params;
 
@@ -1608,12 +1328,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "scan_2d": {
-        interface ScanParamConfig {
-          name: string;
-          min: number;
-          max: number;
-          steps: number;
-        }
         const params = args as { param1: ScanParamConfig; param2: ScanParamConfig; fixedParams?: CouplingParams };
         const { param1, param2, fixedParams = {} } = params;
 
@@ -1705,7 +1419,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const params = args as unknown as TwoHDMParams;
 
         // Validate 2HDM type
-        const allowedTypes = ["I", "II", "L", "F"];
+        const allowedTypes = ["I", "II", "L", "F"] as const;
         if (!allowedTypes.includes(params.type)) {
           throw new Error(`Invalid 2HDM type. Allowed: ${allowedTypes.join(", ")}`);
         }
@@ -1716,34 +1430,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const mass = validateMass(params.mass);
 
         const cosBetaMinusAlpha = Math.sqrt(1 - sinBetaMinusAlpha ** 2);
-
-        // Reduced couplings in alignment limit approach
-        const CV = sinBetaMinusAlpha;
-        let Ct: number, Cb: number, Ctau: number;
-
-        // Type-dependent fermion couplings
-        switch (params.type) {
-          case "I":
-            Ct = sinBetaMinusAlpha + cosBetaMinusAlpha / tanBeta;
-            Cb = Ct;
-            Ctau = Ct;
-            break;
-          case "II":
-            Ct = sinBetaMinusAlpha + cosBetaMinusAlpha / tanBeta;
-            Cb = sinBetaMinusAlpha - cosBetaMinusAlpha * tanBeta;
-            Ctau = Cb;
-            break;
-          case "L":
-            Ct = sinBetaMinusAlpha + cosBetaMinusAlpha / tanBeta;
-            Cb = Ct;
-            Ctau = sinBetaMinusAlpha - cosBetaMinusAlpha * tanBeta;
-            break;
-          case "F":
-            Ct = sinBetaMinusAlpha + cosBetaMinusAlpha / tanBeta;
-            Cb = sinBetaMinusAlpha - cosBetaMinusAlpha * tanBeta;
-            Ctau = Ct;
-            break;
-        }
+        const { CV, Ct, Cb, Ctau } = compute2HDMCouplings(params.type, tanBeta, sinBetaMinusAlpha);
 
         // Compute likelihood for these couplings
         const xmlInput = generateReducedCouplingsXML({
@@ -2155,7 +1842,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
  */
 async function main() {
   // Verify Lilith installation using sync fs for startup check
-  if (!fsSync.existsSync(LILITH_DIR)) {
+  if (!existsSync(LILITH_DIR)) {
     console.error(`Lilith directory not found: ${LILITH_DIR}`);
     console.error("Set LILITH_DIR environment variable to point to Lilith installation");
     process.exit(1);
