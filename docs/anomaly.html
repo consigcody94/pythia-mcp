@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tension Scan — is the Higgs hiding new physics? · Higgs Explorer</title>
+<meta name="description" content="A live anomaly/tension scan of the LHC Higgs data: a real Lilith global coupling fit, the per-channel pull distribution, and the strongest tensions — rigorously, without overclaiming." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{--ink:#07090e;--ink-2:#0c0f17;--ink-3:#11151f;--panel:#0e121b;--line:rgba(255,255,255,.08);--line-2:rgba(255,255,255,.14);
+    --gold:#f5b942;--gold-2:#ffd27a;--cyan:#46d8c4;--magenta:#ec5f9e;--violet:#9d8cff;--green:#5fd28a;
+    --text:#e9edf6;--muted:#8b94a8;--faint:#576074;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',system-ui,sans-serif;--disp:'Fraunces',serif}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--ink);color:var(--text);font-family:var(--sans);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;z-index:-2;background:radial-gradient(900px 520px at 80% -10%,rgba(236,95,158,.10),transparent 60%),radial-gradient(760px 600px at 5% 10%,rgba(70,216,196,.07),transparent 55%),var(--ink)}
+  body::after{content:"";position:fixed;inset:0;z-index:-1;opacity:.5;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E")}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 28px}
+  a{color:var(--cyan);text-decoration:none}.mono{font-family:var(--mono)}
+  header.bar{position:sticky;top:0;z-index:40;backdrop-filter:blur(14px);background:linear-gradient(var(--ink),rgba(7,9,14,.72));border-bottom:1px solid var(--line)}
+  .bar .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .brand{display:flex;align-items:center;gap:12px;font-family:var(--disp);font-weight:600;font-size:1.12rem}
+  .brand .dot{width:11px;height:11px;border-radius:50%;background:var(--magenta);box-shadow:0 0 0 4px rgba(236,95,158,.16),0 0 18px var(--magenta)}
+  nav.links{display:flex;gap:24px;font-family:var(--mono);font-size:.78rem}
+  nav.links a{color:var(--muted)}nav.links a:hover{color:var(--text)}
+  @media(max-width:720px){nav.links{display:none}}
+
+  .hero{padding:70px 0 30px}
+  .eyebrow{display:inline-flex;gap:10px;align-items:center;border:1px solid var(--line-2);border-radius:100px;padding:7px 16px;font-family:var(--mono);font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:22px}
+  .eyebrow b{color:var(--magenta);font-weight:500}
+  h1{font-family:var(--disp);font-weight:900;font-size:clamp(2.3rem,5.6vw,3.9rem);line-height:1.0;letter-spacing:-.02em;margin-bottom:18px}
+  h1 .q{color:var(--magenta)}
+  .lede{max-width:660px;color:#c4cbda;font-size:1.1rem}.lede b{color:var(--text);font-weight:500}
+
+  .verdict{display:flex;gap:18px;align-items:stretch;margin:34px 0 8px;flex-wrap:wrap}
+  .vbadge{flex:none;width:188px;background:linear-gradient(160deg,rgba(95,210,138,.12),var(--panel));border:1px solid rgba(95,210,138,.4);border-radius:16px;padding:22px;text-align:center}
+  .vbadge .lbl{font-family:var(--mono);font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .vbadge .big{font-family:var(--disp);font-weight:900;font-size:2.2rem;color:var(--green);line-height:1.05;margin:8px 0 4px}
+  .vbadge .sub{font-family:var(--mono);font-size:.74rem;color:var(--muted)}
+  .vtext{flex:1;min-width:280px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;color:var(--muted);font-size:.98rem}
+  .vtext b{color:var(--gold-2);font-weight:500}
+
+  section{padding:54px 0;border-top:1px solid var(--line)}
+  .shead{display:flex;gap:16px;align-items:baseline;margin-bottom:8px;flex-wrap:wrap}
+  .shead h2{font-family:var(--disp);font-weight:600;font-size:clamp(1.6rem,3.2vw,2.3rem)}
+  .shead .idx{font-family:var(--mono);font-size:.74rem;color:var(--magenta);letter-spacing:.1em}
+  .sub{color:var(--muted);max-width:680px;margin-bottom:26px}
+
+  .grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:22px}
+  @media(max-width:880px){.grid2{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .panel h4{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+  #contour,#pullhist{width:100%;height:auto;display:block}
+  .stat{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-top:1px solid var(--line);font-family:var(--mono);font-size:.84rem}
+  .stat:first-of-type{border-top:none}
+  .stat .k{color:var(--muted)}.stat .v{color:var(--text);font-weight:500}
+  .stat .v.good{color:var(--green)}.stat .v.hot{color:var(--gold)}
+  .clkey{display:flex;gap:16px;font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-top:10px;flex-wrap:wrap}
+  .clkey i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:middle}
+
+  table.tt{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.82rem}
+  table.tt th{text-align:left;color:var(--faint);font-weight:400;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line-2)}
+  table.tt td{padding:9px 10px;border-bottom:1px solid var(--line)}
+  table.tt .pull{font-weight:600}
+  .pp{color:var(--gold)}.pn{color:var(--cyan)}.hot{color:var(--magenta)}
+  .chan{color:var(--text)}.muc{color:var(--muted)}
+
+  .note{background:linear-gradient(150deg,rgba(157,140,255,.08),rgba(70,216,196,.04));border:1px solid var(--line-2);border-radius:14px;padding:20px 22px;margin-top:22px}
+  .note .k{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--violet)}
+  .note p{color:#c4cbda;margin-top:8px;font-size:.96rem}
+  .note p+p{margin-top:10px}
+
+  .tip{position:fixed;z-index:80;pointer-events:none;opacity:0;transition:opacity .12s;background:#05070b;border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;font-family:var(--mono);font-size:.74rem;max-width:260px;box-shadow:0 18px 50px rgba(0,0,0,.6)}
+  .tip .mu{color:var(--gold)}
+  footer{border-top:1px solid var(--line);padding:40px 0 64px;color:var(--muted);font-size:.86rem}
+  footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  footer a{color:var(--muted)}footer a:hover{color:var(--gold)}
+  .rv-in{opacity:0;transform:translateY(20px);animation:rise .8s cubic-bezier(.2,.7,.2,1) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .d1{animation-delay:.05s}.d2{animation-delay:.16s}.d3{animation-delay:.3s}
+  @media(prefers-reduced-motion:reduce){.rv-in{animation:none;opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<header class="bar"><div class="wrap">
+  <div class="brand"><span class="dot"></span>Tension&nbsp;Scan</div>
+  <nav class="links">
+    <a href="./index.html">← Explorer</a>
+    <a href="#fit">Global fit</a>
+    <a href="#pulls">Pull scan</a>
+    <a href="#verdict">Verdict</a>
+    <a href="https://github.com/consigcody94/pythia-mcp" target="_blank" rel="noopener">GitHub ↗</a>
+  </nav>
+</div></header>
+
+<div class="hero"><div class="wrap">
+  <span class="eyebrow rv-in d1">Live Lilith fit&nbsp;·&nbsp;<b>anomaly scan</b></span>
+  <h1 class="rv-in d1">Is the Higgs hiding<br/>new physics? <span class="q">Not yet.</span></h1>
+  <p class="lede rv-in d2">We ran the <b>real Lilith likelihood engine</b> across the whole experimental database and scanned every channel for tension with the Standard Model. Here is exactly what the data says — measured, not asserted.</p>
+  <div class="verdict rv-in d3">
+    <div class="vbadge">
+      <div class="lbl">SM goodness of fit</div>
+      <div class="big" id="v-gof">—</div>
+      <div class="sub" id="v-chi">χ²/ndf —</div>
+    </div>
+    <div class="vtext" id="v-text">Computing the global fit…</div>
+  </div>
+</div></div>
+
+<section id="fit"><div class="wrap">
+  <div class="shead"><span class="idx">01 · LIVE</span><h2>The coupling fit</h2></div>
+  <p class="sub">Lilith profiles the two master couplings (C<sub>V</sub>, C<sub>F</sub>) against all measurements. The confidence regions below are the genuine −2&nbsp;ln&nbsp;L landscape; the Standard Model is the cross, the data's best fit is the dot.</p>
+  <div class="grid2">
+    <div class="panel">
+      <h4>−2 ln L over (C<sub>V</sub>, C<sub>F</sub>) — computed by Lilith</h4>
+      <svg id="contour" viewBox="0 0 520 470" aria-label="Coupling likelihood contour"></svg>
+      <div class="clkey">
+        <span><i style="background:#f5b942"></i>68% CL</span>
+        <span><i style="background:#7a5a1f"></i>95% CL</span>
+        <span><i style="background:#14233a"></i>excluded</span>
+        <span>✕ Standard Model &nbsp; ● best fit</span>
+      </div>
+    </div>
+    <div class="panel">
+      <h4>What the engine returns</h4>
+      <div class="stat"><span class="k">Experimental files</span><span class="v" id="s-files">—</span></div>
+      <div class="stat"><span class="k">Degrees of freedom</span><span class="v" id="s-ndf">—</span></div>
+      <div class="stat"><span class="k">SM −2 ln L</span><span class="v" id="s-sm">—</span></div>
+      <div class="stat"><span class="k">χ² / ndf</span><span class="v good" id="s-chi">—</span></div>
+      <div class="stat"><span class="k">SM goodness-of-fit p</span><span class="v good" id="s-gof">—</span></div>
+      <div class="stat"><span class="k">Best-fit C<sub>V</sub></span><span class="v hot" id="s-cv">—</span></div>
+      <div class="stat"><span class="k">Best-fit C<sub>F</sub></span><span class="v hot" id="s-cf">—</span></div>
+      <div class="stat"><span class="k">Δχ²(SM vs best fit)</span><span class="v" id="s-d">—</span></div>
+      <div class="stat"><span class="k">Significance of preference</span><span class="v" id="s-sig">—</span></div>
+    </div>
+  </div>
+</div></section>
+
+<section id="pulls"><div class="wrap">
+  <div class="shead"><span class="idx">02</span><h2>The pull distribution</h2></div>
+  <p class="sub">Every channel's pull = (μ − 1)/σ. If the SM were right and uncertainties perfect, these would form a unit Gaussian (the dashed curve). What we actually see is <b id="p-summary">…</b></p>
+  <div class="grid2">
+    <div class="panel">
+      <h4>Distribution of pulls vs unit-Gaussian expectation</h4>
+      <svg id="pullhist" viewBox="0 0 520 320" aria-label="Pull histogram"></svg>
+    </div>
+    <div class="panel">
+      <h4>Strongest tensions</h4>
+      <table class="tt"><thead><tr><th>Pull</th><th>Channel</th><th>μ</th><th>Source</th></tr></thead><tbody id="tt-body"></tbody></table>
+      <p class="muc" style="font-family:var(--mono);font-size:.72rem;margin-top:12px;color:var(--faint)">Across <b id="p-n">—</b> channel entries, <b id="p-b2">—</b> exceed 2σ (chance expects ~<b id="p-e2">—</b>), <b id="p-b3">—</b> exceed 3σ.</p>
+    </div>
+  </div>
+</div></section>
+
+<section id="verdict"><div class="wrap">
+  <div class="shead"><span class="idx">03</span><h2>So — a breakthrough?</h2></div>
+  <div class="note">
+    <span class="k">The honest reading</span>
+    <p>No. The 125 GeV Higgs remains <b style="color:var(--gold-2)">remarkably Standard-Model-like</b>. The global fit prefers couplings within a few percent of unity, at barely ~1.5σ — a routine fluctuation. The channels scatter <em>less</em> than their error bars predict, and there are <em>fewer</em> 2σ outliers than random chance alone would produce. There is no signal of new physics in this database.</p>
+    <p>What <em>is</em> real and worth watching: the strongest tensions cluster in <b style="color:var(--gold-2)">H→γγ associated production</b> (WH/ZH/VBF→γγ), and the data leans gently toward C<sub>V</sub> &gt; 1, C<sub>F</sub> &lt; 1. None of it is significant today. A genuine breakthrough would be one of these patterns <em>growing</em> with luminosity instead of washing out.</p>
+    <p>That is exactly why <b>live</b> calculation matters: this page is a tension monitor. Refresh the database to Run&nbsp;3, re-run the fit, and the moment a pull stops shrinking, you would see it here first — not in a press release.</p>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <div><div class="brand" style="font-size:1rem"><span class="dot"></span>Tension Scan</div>
+    <p style="font-family:var(--mono);font-size:.74rem;color:var(--faint);margin-top:12px;max-width:520px;line-height:1.6">Global fit computed live by <a href="https://github.com/sabinekraml/Lilith-2" target="_blank" rel="noopener">Lilith-2</a> (S. Kraml et al.). Pulls are marginal per-channel and ignore cross-channel correlations; some entries come from overlapping datasets. Not a substitute for an official combination. GPL-3.0.</p>
+  </div>
+  <div style="font-family:var(--mono);font-size:.8rem;display:flex;flex-direction:column;gap:8px">
+    <a href="./index.html">→ Back to the Explorer</a>
+    <a href="https://github.com/consigcody94/pythia-mcp" target="_blank" rel="noopener">→ pythia-mcp</a>
+  </div>
+</div></footer>
+
+<div class="tip" id="tip"></div>
+
+<script>
+Promise.all([
+  fetch("./lilith_scan.json").then(r=>r.json()),
+  fetch("./anomaly.json").then(r=>r.json())
+]).then(([fit,an])=>{ renderFit(fit); renderPulls(an); }).catch(e=>{
+  document.getElementById("v-text").textContent = "Failed to load results: "+e;
+});
+
+function fmtp(p){ return p>=0.01? p.toFixed(2) : p.toExponential(1); }
+
+function renderFit(f){
+  document.getElementById("v-gof").textContent = (f.sm.gof_pvalue*100).toFixed(0)+"%";
+  document.getElementById("v-chi").textContent = "χ²/ndf "+f.sm.chi2_over_ndf;
+  document.getElementById("v-text").innerHTML =
+    `The Standard Model describes all <b>${f.nfiles}</b> measurements with χ²/ndf = <b>${f.sm.chi2_over_ndf}</b> `+
+    `(p = <b>${fmtp(f.sm.gof_pvalue)}</b>) — an excellent fit. The data's best fit sits at C<sub>V</sub> = <b>${f.bestfit.CV}</b>, `+
+    `C<sub>F</sub> = <b>${f.bestfit.CF}</b>, only Δχ² = <b>${f.deltaChi2_SM_vs_bestfit}</b> from the SM (~${f.approx_significance_sigma}σ). Consistent.`;
+  document.getElementById("s-files").textContent=f.nfiles;
+  document.getElementById("s-ndf").textContent=f.ndf;
+  document.getElementById("s-sm").textContent=f.sm.m2logL;
+  document.getElementById("s-chi").textContent=f.sm.chi2_over_ndf;
+  document.getElementById("s-gof").textContent=fmtp(f.sm.gof_pvalue);
+  document.getElementById("s-cv").textContent=f.bestfit.CV;
+  document.getElementById("s-cf").textContent=f.bestfit.CF;
+  document.getElementById("s-d").textContent=f.deltaChi2_SM_vs_bestfit+"  (2 dof)";
+  document.getElementById("s-sig").textContent="p = "+fmtp(f.sm_vs_bestfit_pvalue)+"  (~"+f.approx_significance_sigma+"σ)";
+
+  // contour heatmap (delta chi2 confidence bands)
+  const svg=document.getElementById("contour");
+  const g=f.deltaGrid, CV=f.CVaxis, CF=f.CFaxis, nC=CV.length, nF=CF.length;
+  const L=58,R=14,T=12,B=46, W=520,H=470, pw=W-L-R, ph=H-T-B;
+  const cw=pw/nC, chh=ph/nF;
+  const xPix=j=>L+ (j+0.5)/nC*pw;
+  const yPix=i=>T+ ph-(i+0.5)/nF*ph;
+  const band=d=> d<2.30? "#f5b942" : d<5.99? "#7a5a1f" : d<11.8? "#1d3251" : "#14233a";
+  let s="";
+  for(let i=0;i<nF;i++)for(let j=0;j<nC;j++){
+    s+=`<rect x="${(L+j/nC*pw).toFixed(1)}" y="${(T+ph-(i+1)/nF*ph).toFixed(1)}" width="${cw+0.6}" height="${chh+0.6}" fill="${band(g[i][j])}" />`;
+  }
+  // axes
+  s+=`<rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="none" stroke="rgba(255,255,255,.18)"/>`;
+  for(const t of [0.8,0.9,1.0,1.1,1.2]){ const x=L+(t-CV[0])/(CV[nC-1]-CV[0])*pw;
+    s+=`<line x1="${x}" y1="${T+ph}" x2="${x}" y2="${T+ph+5}" stroke="#576074"/><text x="${x}" y="${T+ph+20}" fill="#8b94a8" font-family="IBM Plex Mono" font-size="11" text-anchor="middle">${t.toFixed(1)}</text>`; }
+  for(const t of [0.8,1.0,1.2]){ const y=T+ph-(t-CF[0])/(CF[nF-1]-CF[0])*ph;
+    s+=`<line x1="${L-5}" y1="${y}" x2="${L}" y2="${y}" stroke="#576074"/><text x="${L-9}" y="${y+4}" fill="#8b94a8" font-family="IBM Plex Mono" font-size="11" text-anchor="end">${t.toFixed(1)}</text>`; }
+  s+=`<text x="${L+pw/2}" y="${H-6}" fill="#c4cbda" font-family="IBM Plex Mono" font-size="12" text-anchor="middle" letter-spacing="2">C_V  (vector coupling)</text>`;
+  s+=`<text transform="translate(15,${T+ph/2}) rotate(-90)" fill="#c4cbda" font-family="IBM Plex Mono" font-size="12" text-anchor="middle" letter-spacing="2">C_F  (fermion coupling)</text>`;
+  // markers
+  const mx=t=>L+(t-CV[0])/(CV[nC-1]-CV[0])*pw, my=t=>T+ph-(t-CF[0])/(CF[nF-1]-CF[0])*ph;
+  const smx=mx(1), smy=my(1);
+  s+=`<g stroke="#fff" stroke-width="2"><line x1="${smx-7}" y1="${smy-7}" x2="${smx+7}" y2="${smy+7}"/><line x1="${smx-7}" y1="${smy+7}" x2="${smx+7}" y2="${smy-7}"/></g>`;
+  const bx=mx(f.bestfit.CV), by=my(f.bestfit.CF);
+  s+=`<circle cx="${bx}" cy="${by}" r="6" fill="#ec5f9e" stroke="#07090e" stroke-width="1.5"/>`;
+  svg.innerHTML=s;
+}
+
+function renderPulls(an){
+  document.getElementById("p-summary").textContent =
+    `mean ${an.mean_pull>=0?"+":""}${an.mean_pull}, width ${an.rms_pull} (narrower than 1.0) — a quiet, SM-like dataset`;
+  document.getElementById("p-n").textContent=an.n;
+  document.getElementById("p-b2").textContent=an.n_beyond_2sigma;
+  document.getElementById("p-e2").textContent=an.expected_beyond_2sigma;
+  document.getElementById("p-b3").textContent=an.n_beyond_3sigma;
+
+  // top tensions table
+  document.getElementById("tt-body").innerHTML = an.top_tensions.map(m=>{
+    const cls = Math.abs(m.pull)>=2.5?"hot":(m.pull>=0?"pp":"pn");
+    const arrow = m.pull>=0?"▲":"▼";
+    return `<tr><td class="pull ${cls}">${arrow} ${m.pull>=0?"+":""}${m.pull}</td>
+      <td class="chan">${esc(m.prod)}→${esc(m.decay)}<br/><span class="muc" style="font-size:.9em">${esc(m.exp)} ${esc(m.run)}</span></td>
+      <td class="muc">${m.mu>=0?"+":""}${m.mu}<br/><span style="font-size:.85em">−${Math.abs(m.lo)}/+${m.hi}</span></td>
+      <td class="muc">${esc(m.source)}</td></tr>`;
+  }).join("");
+
+  // histogram
+  const svg=document.getElementById("pullhist");
+  const W=520,H=320,L=44,R=12,T=14,B=40, pw=W-L-R, ph=H-T-B;
+  const lo=-4, hi=4, bw=0.5, nb=(hi-lo)/bw;
+  const bins=new Array(nb).fill(0);
+  an.measurements.forEach(m=>{ let b=Math.floor((m.pull-lo)/bw); if(b>=0&&b<nb) bins[b]++; });
+  const ymax=Math.max(...bins, 1)*1.15;
+  const x=v=>L+(v-lo)/(hi-lo)*pw, y=c=>T+ph-c/ymax*ph;
+  let s="";
+  // grid
+  for(let v=lo;v<=hi;v++){ s+=`<line x1="${x(v)}" y1="${T}" x2="${x(v)}" y2="${T+ph}" stroke="rgba(255,255,255,.05)"/>`;
+    s+=`<text x="${x(v)}" y="${T+ph+18}" fill="#576074" font-family="IBM Plex Mono" font-size="11" text-anchor="middle">${v>0?"+":""}${v}</text>`; }
+  // +/-2 sigma bands
+  s+=`<rect x="${x(-2)}" y="${T}" width="${x(2)-x(-2)}" height="${ph}" fill="rgba(95,210,138,.05)"/>`;
+  s+=`<line x1="${x(-2)}" y1="${T}" x2="${x(-2)}" y2="${T+ph}" stroke="rgba(236,95,158,.5)" stroke-dasharray="4 4"/>`;
+  s+=`<line x1="${x(2)}" y1="${T}" x2="${x(2)}" y2="${T+ph}" stroke="rgba(236,95,158,.5)" stroke-dasharray="4 4"/>`;
+  // bars
+  for(let b=0;b<nb;b++){ if(!bins[b])continue; const x0=x(lo+b*bw), x1=x(lo+(b+1)*bw);
+    const cen=lo+(b+0.5)*bw; const col=Math.abs(cen)>=2?"#ec5f9e":(cen>0?"#f5b942":"#46d8c4");
+    s+=`<rect x="${x0+1}" y="${y(bins[b])}" width="${x1-x0-2}" height="${T+ph-y(bins[b])}" fill="${col}" opacity=".82" rx="2"/>`; }
+  // unit gaussian expectation (n*bw*N(0,1))
+  const n=an.n; let path="";
+  for(let px=0;px<=120;px++){ const v=lo+(hi-lo)*px/120; const g=n*bw*Math.exp(-v*v/2)/Math.sqrt(2*Math.PI);
+    path+=(px?"L":"M")+x(v).toFixed(1)+","+y(g).toFixed(1)+" "; }
+  s+=`<path d="${path}" fill="none" stroke="#e9edf6" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>`;
+  s+=`<text x="${x(2.4)}" y="${T+18}" fill="#e9edf6" font-family="IBM Plex Mono" font-size="10" opacity=".8">expected (SM)</text>`;
+  s+=`<text x="${L+pw/2}" y="${H-4}" fill="#c4cbda" font-family="IBM Plex Mono" font-size="12" text-anchor="middle" letter-spacing="2">PULL  (μ − 1)/σ</text>`;
+  svg.innerHTML=s;
+}
+
+function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+</script>
+</body>
+</html>
