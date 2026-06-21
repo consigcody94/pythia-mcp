@@ -38,3 +38,5 @@ __pycache__/
 # Lilith temp files
 lilith/tmp_*.xml
 lilith/results/
+
+.playwright-mcp/

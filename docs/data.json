@@ -1,0 +1,2325 @@
+{
+  "generated": "static",
+  "totals": {
+    "files": 87,
+    "measurements1D": 20,
+    "points2D": 12
+  },
+  "byExperiment": {
+    "ATLAS": 48,
+    "ATLAS-CMS_combination": 5,
+    "CMS": 33,
+    "Tevatron": 1
+  },
+  "byRun": {
+    "Run1": 34,
+    "Run2": 52,
+    "Tevatron": 1
+  },
+  "byDecay": {
+    "invisible": 9,
+    "bb": 13,
+    "gammagamma": 13,
+    "WW": 8,
+    "WW+tautau+ZZ+bb": 5,
+    "tautau": 11,
+    "ZZ": 14,
+    "mumu": 3,
+    "Zgamma": 2,
+    "gammagamma+ZZ+WW+tautau+bb": 2,
+    "gammagamma+ZZ+WW": 1,
+    "tautau+bb+WW+ZZ": 1,
+    "WW+tautau": 2,
+    "WW+tautau+ZZ": 1,
+    "gamma": 1,
+    "gammagamma+ZZ+WW+tautau+bb+mumu": 1
+  },
+  "byType": {
+    "n": 36,
+    "f": 7,
+    "vn": 32,
+    "vn1": 1,
+    "p": 11
+  },
+  "measurements1D": [
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ+bb",
+      "prod": "ttH",
+      "source": "HIGG-2013-26",
+      "sqrts": "8",
+      "mass": 125,
+      "mu": -9.6,
+      "lo": -9.7,
+      "hi": 9.6
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ",
+      "prod": "ttH",
+      "source": "HIG-13-029",
+      "sqrts": "8",
+      "mass": 125.6,
+      "mu": -4.7,
+      "lo": -1.3,
+      "hi": 5
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "tautau",
+      "prod": "ttH",
+      "source": "HIG-14-009",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "mu": -1.325,
+      "lo": -3.6,
+      "hi": 6.079
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ+bb",
+      "prod": "ttH",
+      "source": "HIGG-2013-26",
+      "sqrts": "8",
+      "mass": 125,
+      "mu": -0.9,
+      "lo": -2,
+      "hi": 3.1
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "ZZ",
+      "prod": "ttH",
+      "source": "HIGG-2016-22",
+      "sqrts": "13",
+      "mass": 125.09,
+      "mu": 0,
+      "lo": 3.83,
+      "hi": 3.83
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "ZZ",
+      "prod": "VH",
+      "source": "HIGG-2016-22",
+      "sqrts": "13",
+      "mass": 125.09,
+      "mu": 0,
+      "lo": -1.89,
+      "hi": 1.89
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "prod": "VH",
+      "source": "HIGG-2013-023",
+      "sqrts": "7+8",
+      "mass": 125.36,
+      "mu": 0.51,
+      "lo": -0.37,
+      "hi": 0.4
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "prod": "VH",
+      "source": "HIG-14-009",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "mu": 0.89,
+      "lo": -0.441,
+      "hi": 0.469
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "prod": "ttH",
+      "source": "HIG-14-010",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "mu": 1.2,
+      "lo": -1.5,
+      "hi": 1.6
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "prod": "ttH",
+      "source": "HIGG-2013-27",
+      "sqrts": "7+8",
+      "mass": 125,
+      "mu": 1.5,
+      "lo": -1.1,
+      "hi": 1.1
+    },
+    {
+      "experiment": "Tevatron",
+      "run": "Tevatron",
+      "lumi": "",
+      "decay": "bb",
+      "prod": "WH+ZH",
+      "source": "FERMILAB-PUB-13-081-E",
+      "sqrts": "1.96",
+      "mass": 125,
+      "mu": 1.59,
+      "lo": -0.72,
+      "hi": 0.69
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "gammagamma",
+      "prod": "ttH",
+      "source": "HIGG-2013-08",
+      "sqrts": "7+8",
+      "mass": 125.4,
+      "mu": 1.6,
+      "lo": -1.8,
+      "hi": 2.7
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ+bb",
+      "prod": "ttH",
+      "source": "HIGG-2013-26",
+      "sqrts": "8",
+      "mass": 125,
+      "mu": 1.8,
+      "lo": -2,
+      "hi": 6.9
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "gammagamma",
+      "prod": "ttH",
+      "source": "HIG-14-009",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "mu": 2.675,
+      "lo": -1.729,
+      "hi": 2.402
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "Zgamma",
+      "prod": "ggH+VVH",
+      "source": "HIGG-2014-06",
+      "sqrts": "7+8",
+      "mass": 125.36,
+      "mu": 2.7,
+      "lo": -4.5,
+      "hi": 4.6
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ+bb",
+      "prod": "ttH",
+      "source": "HIGG-2013-26",
+      "sqrts": "8",
+      "mass": 125,
+      "mu": 2.8,
+      "lo": -1.9,
+      "hi": 2.1
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ+bb",
+      "prod": "ttH",
+      "source": "HIGG-2013-26",
+      "sqrts": "8",
+      "mass": 125,
+      "mu": 2.8,
+      "lo": -1.8,
+      "hi": 2.2
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "prod": "VBF",
+      "source": "HIG-14-004",
+      "sqrts": "8",
+      "mass": 125,
+      "mu": 2.8,
+      "lo": -1.4,
+      "hi": 1.6
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau",
+      "prod": "ttH",
+      "source": "HIG-13-029",
+      "sqrts": "8",
+      "mass": 125.6,
+      "mu": 3.1,
+      "lo": -2,
+      "hi": 2.4
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau",
+      "prod": "ttH",
+      "source": "HIG-13-029",
+      "sqrts": "8",
+      "mass": 125.6,
+      "mu": 5.3,
+      "lo": -1.8,
+      "hi": 2.1
+    }
+  ],
+  "points2D": [
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "decay": "gammagamma",
+      "prodX": "ggH",
+      "prodY": "VVH",
+      "x": 1.357,
+      "y": 0.78,
+      "source": "HIGG-2014-06"
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "decay": "tautau",
+      "prodX": "ggH",
+      "prodY": "VBF",
+      "x": 1.779,
+      "y": 1.379,
+      "source": "HIGG-2014-06"
+    },
+    {
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "decay": "ZZ",
+      "prodX": "ggH",
+      "prodY": "VBF",
+      "x": 1.638,
+      "y": 0.891,
+      "source": "HIGG-2014-06"
+    },
+    {
+      "experiment": "ATLAS-CMS_combination",
+      "run": "Run1",
+      "decay": "bb",
+      "prodX": "ttH",
+      "prodY": "VVH",
+      "x": 1.181,
+      "y": 0.66,
+      "source": "CMS-HIG-15-002; ATLAS-HIGG-2015-07"
+    },
+    {
+      "experiment": "ATLAS-CMS_combination",
+      "run": "Run1",
+      "decay": "gammagamma",
+      "prodX": "ggH",
+      "prodY": "VVH",
+      "x": 1.18,
+      "y": 1.073,
+      "source": "CMS-HIG-15-002; ATLAS-HIGG-2015-07"
+    },
+    {
+      "experiment": "ATLAS-CMS_combination",
+      "run": "Run1",
+      "decay": "tautau",
+      "prodX": "ggH",
+      "prodY": "VVH",
+      "x": 1.092,
+      "y": 1.14,
+      "source": "CMS-HIG-15-002; ATLAS-HIGG-2015-07"
+    },
+    {
+      "experiment": "ATLAS-CMS_combination",
+      "run": "Run1",
+      "decay": "WW",
+      "prodX": "ggH",
+      "prodY": "VVH",
+      "x": 0.996,
+      "y": 1.408,
+      "source": "CMS-HIG-15-002; ATLAS-HIGG-2015-07"
+    },
+    {
+      "experiment": "ATLAS-CMS_combination",
+      "run": "Run1",
+      "decay": "ZZ",
+      "prodX": "ggH",
+      "prodY": "VVH",
+      "x": 1.414,
+      "y": 0.778,
+      "source": "CMS-HIG-15-002; ATLAS-HIGG-2015-07"
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "decay": "gammagamma",
+      "prodX": "ggH",
+      "prodY": "VVH",
+      "x": 1.10322,
+      "y": 1.2787,
+      "source": "HIG-14-009"
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "decay": "tautau",
+      "prodX": "ggH",
+      "prodY": "VVH",
+      "x": 0.543733,
+      "y": 1.24145,
+      "source": "HIG-14-009"
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "decay": "WW",
+      "prodX": "ggH",
+      "prodY": "VVH",
+      "x": 0.896122,
+      "y": 0.734777,
+      "source": "HIG-14-009"
+    },
+    {
+      "experiment": "CMS",
+      "run": "Run1",
+      "decay": "ZZ",
+      "prodX": "ggH",
+      "prodY": "VVH",
+      "x": 0.986715,
+      "y": 1.62419,
+      "source": "HIG-14-009"
+    }
+  ],
+  "catalog": [
+    {
+      "file": "ATLAS-CMS_combination/Run1/ATLAS-CMS_ggH-VVH_bb_n68.xml",
+      "experiment": "ATLAS-CMS_combination",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "CMS-HIG-15-002; ATLAS-HIGG-2015-07",
+      "sourceType": "publication",
+      "sqrts": "7+8",
+      "mass": 125.09,
+      "prods": [
+        "ttH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS-CMS_combination/Run1/ATLAS-CMS_ggH-VVH_gammagamma_n68.xml",
+      "experiment": "ATLAS-CMS_combination",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "CMS-HIG-15-002; ATLAS-HIGG-2015-07",
+      "sourceType": "publication",
+      "sqrts": "7+8",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS-CMS_combination/Run1/ATLAS-CMS_ggH-VVH_tautau_n68.xml",
+      "experiment": "ATLAS-CMS_combination",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "CMS-HIG-15-002; ATLAS-HIGG-2015-07",
+      "sourceType": "publication",
+      "sqrts": "7+8",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS-CMS_combination/Run1/ATLAS-CMS_ggH-VVH_WW_n68.xml",
+      "experiment": "ATLAS-CMS_combination",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW",
+      "decays": [
+        "WW"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "CMS-HIG-15-002; ATLAS-HIGG-2015-07",
+      "sourceType": "publication",
+      "sqrts": "7+8",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS-CMS_combination/Run1/ATLAS-CMS_ggH-VVH_ZZ_n68.xml",
+      "experiment": "ATLAS-CMS_combination",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "CMS-HIG-15-002; ATLAS-HIGG-2015-07",
+      "sourceType": "publication",
+      "sqrts": "7+8",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2013-023_VH_bb_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2013-023",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.36,
+      "prods": [
+        "VH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2013-27_ttH_bb_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2013-27",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2013-08_ttH_gammagamma_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2013-08",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.4,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2014-06_ggH-VVH_gammagamma_n68.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "HIGG-2014-06",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.36,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run1/CONF-2015-004_VBF_invisible_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "invisible",
+      "decays": [
+        "invisible"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "ATLAS-CONF-2015-004",
+      "sourceType": "preliminary",
+      "sqrts": "8",
+      "mass": 125,
+      "prods": [
+        "VBF",
+        "ggH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2013-03_ZH_invisible_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "invisible",
+      "decays": [
+        "invisible"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2013-03",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.5,
+      "prods": [
+        "ZH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2014-06_mumu_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "mumu",
+      "decays": [
+        "mumu"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2014-06",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.36,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2014-06_ggH-VVH_tautau_n68.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "HIGG-2014-06",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.36,
+      "prods": [
+        "ggH",
+        "VBF"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2013-15_ggH-VVH_WW_f.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW",
+      "decays": [
+        "WW"
+      ],
+      "dim": 2,
+      "type": "f",
+      "source": "HIGG-2013-15",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.36,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2013-26_ttH_1l2tau_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ+bb",
+      "decays": [
+        "WW",
+        "tautau",
+        "ZZ",
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2013-26",
+      "sourceType": "published",
+      "sqrts": "8",
+      "mass": 125,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2013-26_ttH_2l0tau_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ+bb",
+      "decays": [
+        "WW",
+        "tautau",
+        "ZZ",
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2013-26",
+      "sourceType": "published",
+      "sqrts": "8",
+      "mass": 125,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2013-26_ttH_2l1tau_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ+bb",
+      "decays": [
+        "WW",
+        "tautau",
+        "ZZ",
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2013-26",
+      "sourceType": "published",
+      "sqrts": "8",
+      "mass": 125,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2013-26_ttH_3l_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ+bb",
+      "decays": [
+        "WW",
+        "tautau",
+        "ZZ",
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2013-26",
+      "sourceType": "published",
+      "sqrts": "8",
+      "mass": 125,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2013-26_ttH_4l_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ+bb",
+      "decays": [
+        "WW",
+        "tautau",
+        "ZZ",
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2013-26",
+      "sourceType": "published",
+      "sqrts": "8",
+      "mass": 125,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2014-06_ZGamma_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "Zgamma",
+      "decays": [
+        "Zgamma"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2014-06",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.36,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run1/HIGG-2014-06_ggH-VVH_ZZ_n68.xml",
+      "experiment": "ATLAS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "HIGG-2014-06",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.36,
+      "prods": [
+        "ggH",
+        "VBF"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/HIGG-2018-51_WH-ZH_bb_vn68.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 2,
+      "type": "vn",
+      "source": "HIGG-2018-51",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "WH",
+        "ZH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-29_WH_bb_ps.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 1,
+      "type": "p",
+      "source": "HIGG-2016-29",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "WH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-29_ZH_bb_ps.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 1,
+      "type": "p",
+      "source": "HIGG-2016-29",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ZH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-30_VBF_bb_ps.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 1,
+      "type": "p",
+      "source": "HIGG-2016-30",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "VBF"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2017-03_ttH_bb_ps.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 1,
+      "type": "p",
+      "source": "HIGG-2017-03",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/CONF-2019-004_ttH_gammagamma_ps.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 1,
+      "type": "vn",
+      "source": "CONF-2019-004",
+      "sourceType": "preliminary",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "top"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/CONF-2020-026_ggH-VBF-WH-ZH-top_gammagamma_vn_dim5.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 5,
+      "type": "vn",
+      "source": "CONF-2020-026",
+      "sourceType": "preliminary",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "bbH",
+        "VBF",
+        "WH",
+        "ZH",
+        "top"
+      ],
+      "nEff": 6
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-21_ggH-VBF-VH-ttH_gammagamma_vn_dim4-fitted.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 4,
+      "type": "vn",
+      "source": "HIGG-2016-21",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "VH",
+        "top"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/CONF-2021-053_combined_vn_dim11_mumu_tautau_bb_excluded.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "gammagamma+ZZ+WW",
+      "decays": [
+        "gammagamma",
+        "ZZ",
+        "WW"
+      ],
+      "dim": 11,
+      "type": "vn",
+      "source": "ATLAS-CONF-2021-053",
+      "sourceType": "preliminary",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "top"
+      ],
+      "nEff": 11
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/CONF-2020-027_combined_vn_dim16.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "gammagamma+ZZ+WW+tautau+bb",
+      "decays": [
+        "gammagamma",
+        "ZZ",
+        "WW",
+        "tautau",
+        "bb"
+      ],
+      "dim": 16,
+      "type": "vn",
+      "source": "ATLAS-CONF-2020-027",
+      "sourceType": "preliminary",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "top"
+      ],
+      "nEff": 17
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/CONF-2021-053_combined_vn_dim18.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "gammagamma+ZZ+WW+tautau+bb",
+      "decays": [
+        "gammagamma",
+        "ZZ",
+        "WW",
+        "tautau",
+        "bb"
+      ],
+      "dim": 18,
+      "type": "vn",
+      "source": "ATLAS-CONF-2021-053",
+      "sourceType": "preliminary",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "VH",
+        "WH",
+        "ZH",
+        "top"
+      ],
+      "nEff": 18
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-28_ZH_invisible_f.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "invisible",
+      "decays": [
+        "invisible"
+      ],
+      "dim": 1,
+      "type": "f",
+      "source": "HIGG-2016-28",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ZH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2018-54_VBF_invisible_f.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "invisible",
+      "decays": [
+        "invisible"
+      ],
+      "dim": 1,
+      "type": "f",
+      "source": "HIGG-2018-54",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "VBF"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/HIGG-2019-14_mumu_ps.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "mumu",
+      "decays": [
+        "mumu"
+      ],
+      "dim": 1,
+      "type": "p",
+      "source": "HIGG-2019-14",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "ZH",
+        "ttH",
+        "bbH",
+        "tH"
+      ],
+      "nEff": 7
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-10_mumu_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "mumu",
+      "decays": [
+        "mumu"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2016-10",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ggH",
+        "VBF",
+        "VH"
+      ],
+      "nEff": 3
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2017-02_ttH_tautau_ps.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 1,
+      "type": "p",
+      "source": "HIGG-2017-02",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2017-07_ggH-VBF_tautau_vn68.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 2,
+      "type": "vn",
+      "source": "HIGG-2017-07",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ggH",
+        "VBF"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2017-02_ttH_combined_vn_dim3.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "tautau+bb+WW+ZZ",
+      "decays": [
+        "tautau",
+        "bb",
+        "WW",
+        "ZZ"
+      ],
+      "dim": 3,
+      "type": "vn",
+      "source": "HIGG-2017-02",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/CONF-2020-045_VBF_WW_f.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "WW",
+      "decays": [
+        "WW"
+      ],
+      "dim": 1,
+      "type": "f",
+      "source": "CONF-2020-045",
+      "sourceType": "preliminary",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "VBF"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/CONF-2020-045_VBF_WW_vn.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "WW",
+      "decays": [
+        "WW"
+      ],
+      "dim": 1,
+      "type": "vn",
+      "source": "CONF-2020-045",
+      "sourceType": "preliminary",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "VBF"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-07_ggH-VBF_WW_vn68.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "WW",
+      "decays": [
+        "WW"
+      ],
+      "dim": 2,
+      "type": "vn",
+      "source": "HIGG-2016-07",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ggH",
+        "VBF"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2017-14_ZH-WH_WW_vn68.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "WW",
+      "decays": [
+        "WW"
+      ],
+      "dim": 2,
+      "type": "vn",
+      "source": "HIGG-2017-14",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ZH",
+        "WH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/HIGG-2018-42_Zgamma_ps.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "Zgamma",
+      "decays": [
+        "Zgamma"
+      ],
+      "dim": 1,
+      "type": "p",
+      "source": "HIGG-2018-42",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "ZH",
+        "ttH",
+        "bbH",
+        "tH"
+      ],
+      "nEff": 7
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/HIGG-2018-28_ggH-VBF-VH-ttH_ZZ_vn1_dim4_Table08-bbH.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 4,
+      "type": "vn1",
+      "source": "HIGG-2018-28",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ggH",
+        "bbH",
+        "VBF",
+        "VH",
+        "top"
+      ],
+      "nEff": 5
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/HIGG-2018-28_ggH-VBF-VH-ttH_ZZ_vn_dim4_Fig10a.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 4,
+      "type": "vn",
+      "source": "HIGG-2018-28",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ggH",
+        "VBF",
+        "VH",
+        "top"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/HIGG-2018-28_ggH-VBF-VH-ttH_ZZ_vn_dim4_Fig10a_no-theo-unc.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 4,
+      "type": "vn",
+      "source": "HIGG-2018-28",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ggH",
+        "VBF",
+        "VH",
+        "top"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/HIGG-2018-28_ggH-VBF-VH-ttH_ZZ_vn_dim4_Table08-bbH.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 4,
+      "type": "vn",
+      "source": "HIGG-2018-28",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ggH",
+        "bbH",
+        "VBF",
+        "VH",
+        "top"
+      ],
+      "nEff": 5
+    },
+    {
+      "file": "ATLAS/Run2/140fb-1/HIGG-2018-28_ggH-VBF-VH-ttH_ZZ_vn_dim4_Table08.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 4,
+      "type": "vn",
+      "source": "HIGG-2018-28",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ggH",
+        "VBF",
+        "VH",
+        "top"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-22_ggH-VBF_ZZ_official.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 2,
+      "type": "p",
+      "source": "HIGG-2016-22",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-22_ggH-VBF_ZZ_p68.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 2,
+      "type": "p",
+      "source": "HIGG-2016-22",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-22_ttH_ZZ_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2016-22",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "ATLAS/Run2/36fb-1/HIGG-2016-22_VH_ZZ_s.xml",
+      "experiment": "ATLAS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIGG-2016-22",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "VH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run1/HIG-14-004_VBF_bb_s.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIG-14-004",
+      "sourceType": "published",
+      "sqrts": "8",
+      "mass": 125,
+      "prods": [
+        "VBF"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run1/HIG-14-009_VH_bb_s.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIG-14-009",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "prods": [
+        "VH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run1/HIG-14-010_ttH_bb_s.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIG-14-010",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run1/HIG-14-009_ggH-VVH_gammagamma_n68.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "HIG-14-009",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "CMS/Run1/HIG-14-009_ttH_gammagamma_s.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIG-14-009",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run1/HIG-13-030_ZHVBF_invisible_f.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "invisible",
+      "decays": [
+        "invisible"
+      ],
+      "dim": 1,
+      "type": "f",
+      "source": "CMS-HIG-13-030",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125,
+      "prods": [
+        "VBF",
+        "ZH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "CMS/Run1/HIG-14-009_ggH-VVH_tautau_n68.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "HIG-14-009",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "CMS/Run1/HIG-14-009_ttH_tautau_s.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIG-14-009",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run1/HIG-14-009_ggH-VVH_WW_n68.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW",
+      "decays": [
+        "WW"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "HIG-14-009",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "CMS/Run1/HIG-13-029_ttH_2SS_s.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau",
+      "decays": [
+        "WW",
+        "tautau"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIG-13-029",
+      "sourceType": "published",
+      "sqrts": "8",
+      "mass": 125.6,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "CMS/Run1/HIG-13-029_ttH_3l_s.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau",
+      "decays": [
+        "WW",
+        "tautau"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIG-13-029",
+      "sourceType": "published",
+      "sqrts": "8",
+      "mass": 125.6,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "CMS/Run1/HIG-13-029_ttH_4l_s.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "WW+tautau+ZZ",
+      "decays": [
+        "WW",
+        "tautau",
+        "ZZ"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "HIG-13-029",
+      "sourceType": "published",
+      "sqrts": "8",
+      "mass": 125.6,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 3
+    },
+    {
+      "file": "CMS/Run1/HIG-14-009_ggH-VVH_ZZ_n68.xml",
+      "experiment": "CMS",
+      "run": "Run1",
+      "lumi": "",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 2,
+      "type": "n",
+      "source": "HIG-14-009",
+      "sourceType": "published",
+      "sqrts": "7+8",
+      "mass": 125.02,
+      "prods": [
+        "ggH",
+        "VVH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-17-031_ggH-WH-ZH-ttH_bb_vn_dim4.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 4,
+      "type": "vn",
+      "source": "HIG-17-031",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "WH",
+        "ZH",
+        "ttH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "CMS/Run2/140fb-1/HIG-19-006_VBF-ggH-ttH-VH_gammagamma_vn_dim4.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "gamma",
+      "decays": [
+        "gamma"
+      ],
+      "dim": 4,
+      "type": "vn",
+      "source": "HIG-19-006",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.38,
+      "prods": [
+        "VBF",
+        "ggH",
+        "ttH",
+        "VH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "CMS/Run2/140fb-1/HIG-19-013_ttH_gammagamma_f.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 1,
+      "type": "f",
+      "source": "HIG-19-013",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run2/140fb-1/HIG-19-013_ttH_gammagamma_vs.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 1,
+      "type": "vn",
+      "source": "HIG-19-013",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ttH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run2/140fb-1/HIG-19-015_ggH-VBF-VH-top_gammagamma_vn_dim4.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 4,
+      "type": "vn",
+      "source": "HIG-19-015",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.38,
+      "prods": [
+        "ggH",
+        "VBF",
+        "VH",
+        "top"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "CMS/Run2/140fb-1/HIG-19-015_ggH-VBF-WH-ZH-ttH-tH_gammagamma_vn_dim6.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 6,
+      "type": "vn",
+      "source": "HIG-19-015",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.38,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "ZH",
+        "ttH",
+        "tH"
+      ],
+      "nEff": 6
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-17-031_ggH-VBF-WH-ZH-ttH_gammagamma_vn_dim5.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "gammagamma",
+      "decays": [
+        "gammagamma"
+      ],
+      "dim": 5,
+      "type": "vn",
+      "source": "HIG-17-031",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "ZH",
+        "ttH"
+      ],
+      "nEff": 5
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-17-031_combined_vn_dim24.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "gammagamma+ZZ+WW+tautau+bb+mumu",
+      "decays": [
+        "gammagamma",
+        "ZZ",
+        "WW",
+        "tautau",
+        "bb",
+        "mumu"
+      ],
+      "dim": 24,
+      "type": "vn",
+      "source": "HIG-17-031",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "ZH",
+        "ttH"
+      ],
+      "nEff": 24
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-17-023_ggH_invisible_vs.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "invisible",
+      "decays": [
+        "invisible"
+      ],
+      "dim": 1,
+      "type": "vn",
+      "source": "CMS-HIG-17-023",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "ZH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-17-023_qqH_invisible_f.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "invisible",
+      "decays": [
+        "invisible"
+      ],
+      "dim": 1,
+      "type": "f",
+      "source": "CMS-HIG-17-023",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "VBF",
+        "ggH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-17-023_VqqH_invisible_vs.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "invisible",
+      "decays": [
+        "invisible"
+      ],
+      "dim": 1,
+      "type": "vn",
+      "source": "CMS-HIG-17-023",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "ZH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-17-023_ZllH_invisible_vs.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "invisible",
+      "decays": [
+        "invisible"
+      ],
+      "dim": 1,
+      "type": "vn",
+      "source": "CMS-HIG-17-023",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ZH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run2/140fb-1/HIG-19-010_VBF-ggH_tautau_vn68_fig10.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 2,
+      "type": "vn",
+      "source": "HIG-19-010",
+      "sourceType": "preliminary",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "VBF",
+        "ggH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "CMS/Run2/140fb-1/HIG-19-010_VBF-ggH_tautau_vn68_fig14b.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 2,
+      "type": "vn",
+      "source": "HIG-19-010",
+      "sourceType": "preliminary",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "VBF",
+        "ggH"
+      ],
+      "nEff": 2
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-17-031_ggH-VBF-ttH_tautau_vn_dim3.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 3,
+      "type": "vn",
+      "source": "HIG-17-031",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "ttH"
+      ],
+      "nEff": 3
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-18-007_WH_tautau_ps.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 1,
+      "type": "p",
+      "source": "HIG-18-007",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "WH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-18-007_ZH_tautau_ps.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "tautau",
+      "decays": [
+        "tautau"
+      ],
+      "dim": 1,
+      "type": "p",
+      "source": "HIG-18-007",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125,
+      "prods": [
+        "ZH"
+      ],
+      "nEff": 1
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-17-031_ggH-VBF-WH-ZH-ttH_WW_vn_dim5.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "WW",
+      "decays": [
+        "WW"
+      ],
+      "dim": 5,
+      "type": "vn",
+      "source": "HIG-17-031",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "ZH",
+        "ttH"
+      ],
+      "nEff": 5
+    },
+    {
+      "file": "CMS/Run2/140fb-1/HIG-19-001_ggH-VBF-VH-ttH_vn_dim4.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "140fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 4,
+      "type": "vn",
+      "source": "HIG-19-001",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.38,
+      "prods": [
+        "ggH",
+        "VBF",
+        "VH",
+        "ttH"
+      ],
+      "nEff": 4
+    },
+    {
+      "file": "CMS/Run2/36fb-1/HIG-17-031_ggH-VBF-WH-ZH-ttH_ZZ_vn_dim5.xml",
+      "experiment": "CMS",
+      "run": "Run2",
+      "lumi": "36fb-1",
+      "decay": "ZZ",
+      "decays": [
+        "ZZ"
+      ],
+      "dim": 5,
+      "type": "vn",
+      "source": "HIG-17-031",
+      "sourceType": "published",
+      "sqrts": "13",
+      "mass": 125.09,
+      "prods": [
+        "ggH",
+        "VBF",
+        "WH",
+        "ZH",
+        "ttH"
+      ],
+      "nEff": 5
+    },
+    {
+      "file": "Tevatron/1303.6346_VH_bb_s.xml",
+      "experiment": "Tevatron",
+      "run": "Tevatron",
+      "lumi": "",
+      "decay": "bb",
+      "decays": [
+        "bb"
+      ],
+      "dim": 1,
+      "type": "n",
+      "source": "FERMILAB-PUB-13-081-E",
+      "sourceType": "published",
+      "sqrts": "1.96",
+      "mass": 125,
+      "prods": [
+        "WH",
+        "ZH"
+      ],
+      "nEff": 2
+    }
+  ]
+}
