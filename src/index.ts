@@ -27,6 +27,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import https from "https";
 import crypto from "crypto";
+import * as zlib from "zlib";
 import {
   escapeXml,
   validateNumber,
@@ -44,6 +45,17 @@ import {
   ALLOWED_DECAY_MODES,
 } from "./utils.js";
 import type { CouplingParams, SignalStrengthParams, ScanParamConfig } from "./utils.js";
+import {
+  parseExpMu,
+  buildExpMu1D,
+  buildExpMu2D,
+  validateExpMu,
+  extractMeasurementsFromHEPDataTable,
+  summarizeHEPDataRecord,
+  summarizeInspireHits,
+  classifyResponse,
+} from "./ingest.js";
+import type { HEPDataTable, Measurement1D } from "./ingest.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,6 +64,8 @@ const __dirname = path.dirname(__filename);
 const LILITH_DIR = process.env.LILITH_DIR || path.join(__dirname, "..", "lilith");
 const PYTHON_CMD = process.env.PYTHON_CMD || "python3";
 const DATA_DIR = path.join(LILITH_DIR, "data");
+// Ingested measurements are written here (never into the vendored Lilith DB).
+const USER_DATA_DIR = process.env.LILITH_USER_DATA_DIR || path.join(DATA_DIR, "user");
 
 // HEPData API configuration
 const HEPDATA_API_BASE = "https://www.hepdata.net";
@@ -187,105 +201,114 @@ async function runLilith(args: string[], input?: string): Promise<string> {
 }
 
 
-/**
- * Fetch data from HEPData API with timeout and caching
- */
-async function fetchHEPData(endpoint: string, redirectCount = 0): Promise<unknown> {
-  if (redirectCount > MAX_REDIRECTS) {
-    throw new Error("HEPData API error: too many redirects");
-  }
+// Browser-like UA + JSON Accept. Several physics data portals (notably HEPData,
+// which sits behind Cloudflare) reject requests with no User-Agent.
+const USER_AGENT = "pythia-mcp/1.0 (+https://github.com/consigcody94/pythia-mcp)";
+const INSPIRE_API = "https://inspirehep.net/api";
+// Cap decoded response size (HEPData records can be large but not unbounded).
+const MAX_HTTP_BYTES = 16 * 1024 * 1024;
 
-  const cacheKey = `hepdata:${endpoint}`;
-  const cached = getCached<unknown>(cacheKey);
-  if (cached !== null) {
-    return cached;
+/**
+ * Shared JSON fetch: sets headers, follows redirects, transparently decompresses
+ * gzip/deflate, and classifies the body so a Cloudflare challenge or HTML error
+ * page becomes an actionable message instead of an opaque "JSON parse failed".
+ */
+async function httpGetJson(
+  url: string,
+  opts: { cacheKey?: string; label: string; redirectCount?: number }
+): Promise<unknown> {
+  const { cacheKey, label } = opts;
+  const redirectCount = opts.redirectCount ?? 0;
+  if (redirectCount > MAX_REDIRECTS) throw new Error(`${label}: too many redirects`);
+  if (cacheKey) {
+    const cached = getCached<unknown>(cacheKey);
+    if (cached !== null) return cached;
   }
 
   return new Promise((resolve, reject) => {
-    const url = `${HEPDATA_API_BASE}${endpoint}`;
-
-    const req = https.get(url, (res) => {
-      // Handle redirects
-      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        fetchHEPData(res.headers.location, redirectCount + 1).then(resolve).catch(reject);
-        return;
-      }
-
-      if (res.statusCode && res.statusCode >= 400) {
-        reject(new Error(`HEPData API error: HTTP ${res.statusCode}`));
-        return;
-      }
-
-      let data = "";
-      res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
-      res.on("end", () => {
-        try {
-          const parsed = JSON.parse(data);
-          setCache(cacheKey, parsed);
-          resolve(parsed);
-        } catch (e) {
-          reject(new Error(`Failed to parse HEPData response: ${e instanceof Error ? e.message : "unknown error"}`));
+    const req = https.get(
+      url,
+      { headers: { "User-Agent": USER_AGENT, Accept: "application/json", "Accept-Encoding": "gzip, deflate" } },
+      (res) => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          const next = new URL(res.headers.location, url).toString();
+          httpGetJson(next, { cacheKey, label, redirectCount: redirectCount + 1 }).then(resolve).catch(reject);
+          res.resume();
+          return;
         }
-      });
-    });
+
+        const encoding = String(res.headers["content-encoding"] || "").toLowerCase();
+        let stream: NodeJS.ReadableStream = res;
+        if (encoding === "gzip") stream = res.pipe(zlib.createGunzip());
+        else if (encoding === "deflate") stream = res.pipe(zlib.createInflate());
+
+        const chunks: Buffer[] = [];
+        let total = 0;
+        stream.on("data", (chunk: Buffer) => {
+          total += chunk.length;
+          if (total > MAX_HTTP_BYTES) {
+            req.destroy();
+            reject(new Error(`${label}: response exceeded ${MAX_HTTP_BYTES} bytes`));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        stream.on("error", (e) => reject(new Error(`${label}: decode error: ${e instanceof Error ? e.message : "unknown"}`)));
+        stream.on("end", () => {
+          const body = Buffer.concat(chunks).toString("utf-8");
+          const cls = classifyResponse(res.statusCode ?? 0, res.headers["content-type"], body);
+          if (cls === "cloudflare-challenge") {
+            reject(new Error(
+              `${label}: blocked by Cloudflare bot protection (HTTP ${res.statusCode}). This endpoint is not reachable from automated/server requests. ` +
+              `Use fetch_hepdata_record with a known record id, search_inspire for discovery, or pass a downloaded table JSON to ingest_hepdata_record(tableJson=...).`
+            ));
+            return;
+          }
+          if (res.statusCode && res.statusCode >= 400) {
+            reject(new Error(`${label}: HTTP ${res.statusCode}`));
+            return;
+          }
+          if (cls === "html") {
+            reject(new Error(`${label}: expected JSON but received an HTML page (HTTP ${res.statusCode})`));
+            return;
+          }
+          if (cls === "empty") {
+            reject(new Error(`${label}: empty response (HTTP ${res.statusCode})`));
+            return;
+          }
+          try {
+            const parsed = JSON.parse(body);
+            if (cacheKey) setCache(cacheKey, parsed);
+            resolve(parsed);
+          } catch (e) {
+            reject(new Error(`${label}: failed to parse JSON: ${e instanceof Error ? e.message : "unknown error"}`));
+          }
+        });
+      }
+    );
 
     req.on("error", reject);
     req.setTimeout(HTTP_TIMEOUT_MS, () => {
       req.destroy();
-      reject(new Error("HEPData API request timeout"));
+      reject(new Error(`${label}: request timeout`));
     });
   });
 }
 
+/** Fetch JSON from the HEPData API (hardened: UA, gzip, Cloudflare-aware). */
+async function fetchHEPData(endpoint: string): Promise<unknown> {
+  return httpGetJson(`${HEPDATA_API_BASE}${endpoint}`, { cacheKey: `hepdata:${endpoint}`, label: "HEPData API" });
+}
 
-/**
- * Fetch data from CERN Open Data portal with timeout and caching
- */
-async function fetchCERNOpenData(endpoint: string, redirectCount = 0): Promise<unknown> {
-  if (redirectCount > MAX_REDIRECTS) {
-    throw new Error("CERN Open Data API error: too many redirects");
-  }
+/** Fetch JSON from the CERN Open Data portal. */
+async function fetchCERNOpenData(endpoint: string): Promise<unknown> {
+  const url = endpoint.startsWith("http") ? endpoint : `${CERN_OPENDATA_API}${endpoint}`;
+  return httpGetJson(url, { cacheKey: `cern:${endpoint}`, label: "CERN Open Data API" });
+}
 
-  const cacheKey = `cern:${endpoint}`;
-  const cached = getCached<unknown>(cacheKey);
-  if (cached !== null) {
-    return cached;
-  }
-
-  return new Promise((resolve, reject) => {
-    const url = endpoint.startsWith("http") ? endpoint : `${CERN_OPENDATA_API}${endpoint}`;
-
-    const req = https.get(url, (res) => {
-      // Handle redirects
-      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        fetchCERNOpenData(res.headers.location, redirectCount + 1).then(resolve).catch(reject);
-        return;
-      }
-
-      if (res.statusCode && res.statusCode >= 400) {
-        reject(new Error(`CERN Open Data API error: HTTP ${res.statusCode}`));
-        return;
-      }
-
-      let data = "";
-      res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
-      res.on("end", () => {
-        try {
-          const parsed = JSON.parse(data);
-          setCache(cacheKey, parsed);
-          resolve(parsed);
-        } catch (e) {
-          reject(new Error(`Failed to parse CERN Open Data response: ${e instanceof Error ? e.message : "unknown error"}`));
-        }
-      });
-    });
-
-    req.on("error", reject);
-    req.setTimeout(HTTP_TIMEOUT_MS, () => {
-      req.destroy();
-      reject(new Error("CERN Open Data API request timeout"));
-    });
-  });
+/** Fetch JSON from INSPIRE-HEP (used for discovery; not behind Cloudflare). */
+async function fetchInspire(endpoint: string): Promise<unknown> {
+  return httpGetJson(`${INSPIRE_API}${endpoint}`, { cacheKey: `inspire:${endpoint}`, label: "INSPIRE-HEP API" });
 }
 
 
@@ -786,6 +809,76 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Only return data published after this date (YYYY-MM-DD)"
             }
           }
+        }
+      },
+      {
+        name: "search_inspire",
+        description: "Search INSPIRE-HEP for Higgs measurement papers. Works as a discovery backend when HEPData's own search is unavailable (it sits behind Cloudflare bot protection). Returns compact records with INSPIRE id, arXiv id, title, and collaborations.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Free-text query, e.g. 'Higgs boson couplings combination ATLAS'" },
+            size: { type: "number", description: "Max results (1-25, default 10)" },
+            collaboration: { type: "string", enum: ["ATLAS", "CMS"], description: "Restrict to a collaboration" }
+          },
+          required: ["query"]
+        }
+      },
+      {
+        name: "ingest_hepdata_record",
+        description: "Convert a Higgs signal-strength measurement into a Lilith experimental <expmu> file. Provide a HEPData record (recordId/inspireId) to fetch and convert, OR a downloaded HEPData table JSON via tableJson (works offline / when HEPData is Cloudflare-blocked). Returns generated <expmu> XML plus a list of measurements that could not be mapped automatically. Optionally writes the files into the user data directory.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            recordId: { type: "number", description: "HEPData record number to fetch" },
+            inspireId: { type: "string", description: "INSPIRE id (e.g. 'ins1753720') to fetch from HEPData" },
+            tableName: { type: "string", description: "Specific table name to convert (default: first signal-strength table)" },
+            tableJson: { description: "A HEPData table JSON object (or JSON string) to convert directly, bypassing the network" },
+            decay: { type: "string", enum: ["gammagamma", "ZZ", "WW", "bb", "tautau", "mumu", "cc", "Zgamma", "gg", "invisible"], description: "Decay-mode hint when the table does not encode it" },
+            prod: { type: "string", enum: ["ggH", "VBF", "WH", "ZH", "VH", "VVH", "ttH", "tH", "bbH"], description: "Production-mode hint when the table does not encode it" },
+            experiment: { type: "string", description: "Experiment label for generated files (e.g. ATLAS, CMS)" },
+            source: { type: "string", description: "Source label for generated files (e.g. HIGG-2018-28)" },
+            write: { type: "boolean", description: "If true, write generated <expmu> files into the user data directory" }
+          }
+        }
+      },
+      {
+        name: "parse_experimental_file",
+        description: "Parse an existing Lilith experimental <expmu> file into structured form (decay, production efficiencies, best-fit signal strength, uncertainties, parametrization type). More useful than the raw XML returned by get_dataset_info.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            datasetPath: { type: "string", description: "Path relative to the data directory, e.g. 'ATLAS/Run1/HIGG-2013-08_ttH_gammagamma_s.xml'" }
+          },
+          required: ["datasetPath"]
+        }
+      },
+      {
+        name: "build_experimental_file",
+        description: "Build a valid Lilith experimental <expmu> file from explicit numbers. Supports 1D (single signal strength with asymmetric uncertainties) and 2D (Gaussian a/b/c parametrization). Useful for adding a measurement by hand or from a paper.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            kind: { type: "string", enum: ["1D", "2D"], description: "1D single mu, or 2D Gaussian" },
+            decay: { type: "string", enum: ["gammagamma", "ZZ", "WW", "bb", "tautau", "mumu", "cc", "Zgamma", "gg", "invisible"] },
+            experiment: { type: "string" },
+            source: { type: "string" },
+            sqrts: { type: "string", description: "Center-of-mass energy label, e.g. '13'" },
+            mass: { type: "number", description: "Higgs mass in GeV (default 125.09)" },
+            prod: { type: "string", description: "1D: production mode (e.g. ggH)" },
+            mu: { type: "number", description: "1D: best-fit signal strength" },
+            uncLeft: { type: "number", description: "1D: left (negative) uncertainty" },
+            uncRight: { type: "number", description: "1D: right (positive) uncertainty" },
+            prodX: { type: "string", description: "2D: x-axis production mode" },
+            prodY: { type: "string", description: "2D: y-axis production mode" },
+            bestfitX: { type: "number", description: "2D: x best-fit" },
+            bestfitY: { type: "number", description: "2D: y best-fit" },
+            a: { type: "number", description: "2D: parametrization a" },
+            b: { type: "number", description: "2D: parametrization b" },
+            c: { type: "number", description: "2D: parametrization c" },
+            write: { type: "boolean", description: "If true, write the file into the user data directory" }
+          },
+          required: ["kind", "decay", "experiment", "source"]
         }
       }
     ]
@@ -1868,6 +1961,154 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               results
             }, null, 2)
           }]
+        };
+      }
+
+      case "search_inspire": {
+        const p = args as { query?: string; size?: number; collaboration?: string };
+        if (!p.query || typeof p.query !== "string") throw new Error("query is required and must be a string");
+        const size = Math.min(Math.max(Math.floor(Number(p.size) || 10), 1), 25);
+        let q = p.query.slice(0, 300);
+        if (p.collaboration && ["ATLAS", "CMS"].includes(p.collaboration)) {
+          q += ` and collaboration ${p.collaboration}`;
+        }
+        const fields = "titles,arxiv_eprints,dois,collaborations,publication_info,control_number,earliest_date";
+        const json = await fetchInspire(`/literature?q=${encodeURIComponent(q)}&size=${size}&fields=${fields}`);
+        const hits = summarizeInspireHits(json);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ query: q, count: hits.length, results: hits }, null, 2) }]
+        };
+      }
+
+      case "parse_experimental_file": {
+        const p = args as { datasetPath?: string };
+        if (!p.datasetPath || typeof p.datasetPath !== "string") throw new Error("datasetPath is required and must be a string");
+        const safePath = safeResolvePath(DATA_DIR, p.datasetPath);
+        let content: string;
+        try {
+          content = await fs.readFile(safePath, "utf-8");
+        } catch {
+          throw new Error(`Dataset not found: ${p.datasetPath}`);
+        }
+        const parsed = parseExpMu(content);
+        const problems = validateExpMu(parsed);
+        return {
+          content: [{ type: "text", text: JSON.stringify({ path: p.datasetPath, parsed, valid: problems.length === 0, problems }, null, 2) }]
+        };
+      }
+
+      case "build_experimental_file": {
+        const p = args as Record<string, unknown>;
+        const kind = p.kind === "2D" ? "2D" : "1D";
+        const experiment = String(p.experiment);
+        const source = String(p.source);
+        const decay = String(p.decay);
+        const sqrts = p.sqrts !== undefined ? String(p.sqrts) : undefined;
+        const mass = p.mass !== undefined ? validateMass(p.mass) : undefined;
+        let xml: string;
+        let prodLabel: string;
+        if (kind === "1D") {
+          const m: Measurement1D = {
+            decay, prod: String(p.prod), experiment, source, sqrts, mass,
+            mu: Number(p.mu), uncLeft: Number(p.uncLeft), uncRight: Number(p.uncRight),
+          };
+          xml = buildExpMu1D(m);
+          prodLabel = m.prod;
+        } else {
+          xml = buildExpMu2D({
+            decay, prodX: String(p.prodX), prodY: String(p.prodY), experiment, source, sqrts, mass,
+            bestfit: { x: Number(p.bestfitX), y: Number(p.bestfitY) },
+            abc: { a: Number(p.a), b: Number(p.b), c: Number(p.c) },
+          });
+          prodLabel = `${String(p.prodX)}-${String(p.prodY)}`;
+        }
+        let written: string | undefined;
+        if (p.write) {
+          await fs.mkdir(USER_DATA_DIR, { recursive: true });
+          const fname = `${experiment}_${source}_${prodLabel}_${decay}_${kind === "2D" ? "n68" : "s"}.xml`.replace(/[^A-Za-z0-9_.-]/g, "_");
+          const fp = path.join(USER_DATA_DIR, fname);
+          await fs.writeFile(fp, xml, "utf-8");
+          written = path.relative(DATA_DIR, fp).replace(/\\/g, "/");
+        }
+        return { content: [{ type: "text", text: JSON.stringify({ kind, xml, written }, null, 2) }] };
+      }
+
+      case "ingest_hepdata_record": {
+        const p = args as Record<string, unknown>;
+        let table: HEPDataTable;
+        let experiment = p.experiment ? String(p.experiment) : "";
+        let source = p.source ? String(p.source) : "";
+        let provenance: string;
+
+        if (p.tableJson !== undefined) {
+          table = (typeof p.tableJson === "string" ? JSON.parse(p.tableJson) : p.tableJson) as HEPDataTable;
+          provenance = "provided tableJson";
+        } else if (p.recordId || p.inspireId) {
+          const id = p.inspireId
+            ? String(p.inspireId).replace(/[^a-zA-Z0-9]/g, "")
+            : validateNumber(p.recordId, "recordId", 1, 99999999);
+          const rec = await fetchHEPData(`/record/${id}?format=json`);
+          const summary = summarizeHEPDataRecord(rec);
+          if (!experiment && summary.collaborations?.length) experiment = summary.collaborations[0];
+          if (!source) source = summary.inspireId ? `ins${summary.inspireId}` : String(id);
+          const wanted = p.tableName
+            ? summary.tables.find((t) => t.name === p.tableName)
+            : summary.tables.find((t) => t.looksLikeSignalStrength) || summary.tables[0];
+          if (!wanted || !wanted.jsonUrl) {
+            return {
+              content: [{ type: "text", text: JSON.stringify({ record: summary, message: "No signal-strength table found. Specify tableName, or download a table JSON and pass it via tableJson." }, null, 2) }]
+            };
+          }
+          table = (await fetchHEPData(wanted.jsonUrl.replace(/^https?:\/\/[^/]+/, ""))) as HEPDataTable;
+          provenance = `HEPData ${id} / ${wanted.name}`;
+        } else {
+          throw new Error("Provide tableJson, or recordId/inspireId to fetch from HEPData.");
+        }
+
+        const { measurements, unmapped } = extractMeasurementsFromHEPDataTable(table, {
+          decay: p.decay as string | undefined,
+          prod: p.prod as string | undefined,
+        });
+
+        const generated: Array<{ filename: string; xml: string }> = [];
+        const skipped: string[] = [...unmapped];
+        for (const m of measurements) {
+          if (m.prod && m.decay && m.uncLeft !== undefined && m.uncRight !== undefined && Number.isFinite(m.mu)) {
+            try {
+              const xml = buildExpMu1D({
+                decay: m.decay, prod: m.prod, experiment: experiment || "UNKNOWN", source: source || "ingested",
+                mu: m.mu, uncLeft: m.uncLeft, uncRight: m.uncRight,
+              });
+              const filename = `${experiment || "X"}_${source || "ingested"}_${m.prod}_${m.decay}_s.xml`.replace(/[^A-Za-z0-9_.-]/g, "_");
+              generated.push({ filename, xml });
+            } catch (e) {
+              skipped.push(`could not build <expmu> for ${m.label}: ${e instanceof Error ? e.message : "error"}`);
+            }
+          }
+        }
+
+        let written: string[] | undefined;
+        if (p.write && generated.length) {
+          await fs.mkdir(USER_DATA_DIR, { recursive: true });
+          written = [];
+          for (const g of generated) {
+            const fp = path.join(USER_DATA_DIR, g.filename);
+            await fs.writeFile(fp, g.xml, "utf-8");
+            written.push(path.relative(DATA_DIR, fp).replace(/\\/g, "/"));
+          }
+          await fs.appendFile(path.join(USER_DATA_DIR, "user.list"), written.join("\n") + "\n", "utf-8");
+        }
+
+        return {
+          content: [{ type: "text", text: JSON.stringify({
+            provenance, experiment, source,
+            measurementsFound: measurements.length,
+            generatedCount: generated.length,
+            generated: generated.slice(0, 20),
+            unmapped: skipped.slice(0, 40),
+            written,
+            note: "Only 1D type=n measurements (single signal strength with asymmetric uncertainties) are auto-converted. For 2D/correlation or multi-dimensional (vn) measurements use build_experimental_file.",
+          }, null, 2) }]
         };
       }
 

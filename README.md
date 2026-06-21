@@ -16,7 +16,7 @@
 **Constrain beyond-Standard-Model physics from LHC Higgs measurements — directly from Claude.**
 
 Pythia wraps the [Lilith](https://github.com/sabinekraml/Lilith-2) library as an MCP server,<br/>
-giving AI assistants access to 28 particle physics analysis tools.
+giving AI assistants access to 24 particle physics analysis tools.
 
 <br/>
 
@@ -95,7 +95,7 @@ You should see a `-2log(likelihood)` value printed to stdout.
 
 ## Tools
 
-Pythia exposes **28 tools** organized into four categories.
+Pythia exposes **24 tools** organized into five categories.
 
 ### Core Analysis
 
@@ -117,6 +117,20 @@ Pythia exposes **28 tools** organized into four categories.
 | `fetch_hepdata_record` | Download a HEPData record by INSPIRE ID or record number |
 | `update_database` | Check HEPData for new signal-strength publications |
 | `get_latest_higgs_data` | Aggregate latest measurements from HEPData + CERN Open Data |
+
+### Data Ingestion
+
+Turn external measurements into the Lilith `<expmu>` format the engine actually consumes.
+
+| Tool | Description |
+|:--|:--|
+| `search_inspire` | Discover Higgs papers via the [INSPIRE-HEP](https://inspirehep.net) API (works when HEPData's own search is blocked) |
+| `ingest_hepdata_record` | Convert a HEPData record (by id) **or a downloaded table JSON** into Lilith `<expmu>` files, with a report of anything it could not map automatically |
+| `parse_experimental_file` | Parse an existing `<expmu>` file into structured form (decay, efficiencies, best-fit, uncertainties, parametrization type) |
+| `build_experimental_file` | Build a valid `<expmu>` file from explicit numbers (1D single-`mu` or 2D Gaussian `a/b/c`) |
+
+> [!NOTE]
+> **Live HEPData access.** HEPData's `/search/` and table-download endpoints sit behind a Cloudflare bot challenge, so they are not reliably reachable from automated/server requests. Pythia handles this gracefully: discovery falls back to **INSPIRE-HEP**, and the ingest pipeline accepts a **downloaded table JSON** (`tableJson`) so conversion works fully offline. Generated files are written to the user data directory (`LILITH_USER_DATA_DIR`), never into the bundled Lilith database.
 
 ### Physics Models
 
@@ -208,7 +222,9 @@ pythia-mcp/
 ├── src/
 │   ├── index.ts           # MCP server, request handlers, tool dispatch
 │   ├── utils.ts           # Validation, XML generation, physics models
-│   └── utils.test.ts      # Unit tests (71 tests via Vitest)
+│   ├── ingest.ts          # Data ingestion: HEPData -> Lilith <expmu>, parser, builder
+│   ├── utils.test.ts      # Unit tests (90 tests via Vitest)
+│   └── ingest.test.ts     # Ingestion tests (14 tests; round-trips all 87 real files)
 ├── lilith/                # Bundled Lilith-2 library
 │   ├── run_lilith.py      # CLI entry point
 │   ├── lilith/            # Core Python package
@@ -249,6 +265,7 @@ npm run dev          # Run with ts-node (development)
 |:--|:--|:--|
 | `LILITH_DIR` | `../lilith` (relative to dist) | Path to Lilith installation |
 | `PYTHON_CMD` | `python3` | Python interpreter command |
+| `LILITH_USER_DATA_DIR` | `<LILITH_DIR>/data/user` | Where ingested `<expmu>` files are written |
 
 <br/>
 
