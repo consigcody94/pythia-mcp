@@ -59,11 +59,11 @@ Under the hood, Pythia generates validated XML input, invokes Lilith's likelihoo
 
 Two names sit at the heart of this project, and both were chosen on purpose.
 
-**Pythia** &mdash; though here we mean not the event generator but the *Pythia*, the priestess of the Oracle at Delphi. She breathed the vapors that rose from the cleft in the rock and gave answers to the questions mortals feared to ask. This server is her modern tripod: you put a question to the Higgs sector in plain language, and the oracle answers from the data.
+**Pythia**, here, is not the event generator but the *Pythia* herself: the priestess of the Oracle at Delphi. She breathed the vapors that rose from the cleft in the rock and gave answers to the questions mortals feared to ask. This server is her modern tripod. You put a question to the Higgs sector in plain language, and the oracle answers from the data.
 
-**Lilith ⚸** is the engine beneath the floor. Its authors named it *Light Likelihood Fit for the Higgs*, and also, knowingly, after the lady of the night from the older stories. Pythia keeps the double meaning. The ⚸ glyph is the **Black Moon, Lilith's own sigil** &mdash; the empty focus of the Moon's orbit, the point you only find by where everything else turns around it. Fitting, for a hunt after new physics in the places the Standard Model leaves dark.
+**Lilith ⚸** is the engine beneath the floor. Its authors named it *Light Likelihood Fit for the Higgs*, and also, knowingly, after the lady of the night from the older stories. Pythia keeps the double meaning. The ⚸ glyph is the **Black Moon, Lilith's own sigil**: the empty focus of the Moon's orbit, the point you find only by where everything else turns around it. Fitting, for a hunt after new physics in the places the Standard Model leaves dark.
 
-> The sigils are a lens for thinking, never evidence. Every number Pythia returns comes from ATLAS and CMS, not from omens. The Higgs, so far, is stubbornly Standard-Model-like &mdash; and saying so honestly is the whole point of a likelihood fit.
+> The sigils are a lens for thinking, never evidence. Every number Pythia returns comes from ATLAS and CMS, not from omens. The Higgs, so far, is stubbornly Standard-Model-like, and saying so honestly is the whole point of a likelihood fit.
 
 <div align="center">
 
