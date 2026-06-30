@@ -25,6 +25,9 @@ import {
   parseLilithNdf,
   parseLilithDbVersion,
   parseDbVersionFile,
+  SM_XSEC,
+  SM_BR,
+  SM_TOTAL_WIDTH,
 } from "./utils.js";
 
 // ── escapeXml ──────────────────────────────────────────────
@@ -720,6 +723,56 @@ describe("compute2HDMCouplings cosBetaMinusAlpha", () => {
   it("is exactly 0 (never NaN) at the |sin(beta-alpha)| = 1 boundary", () => {
     expect(compute2HDMCouplings("I", 2, 1).cosBetaMinusAlpha).toBe(0);
     expect(compute2HDMCouplings("I", 2, -1).cosBetaMinusAlpha).toBe(0);
+  });
+});
+
+// ── SM reference numbers (literature-pinned against LHCHWG YR4) ──
+
+describe("SM_XSEC cross-section table", () => {
+  it("has all 7 production modes at every supported energy", () => {
+    const modes = ["ggH", "VBF", "WH", "ZH", "ttH", "bbH", "tH"].sort();
+    for (const e of [7, 8, 13, 13.6, 14]) {
+      expect(Object.keys(SM_XSEC[e]).sort()).toEqual(modes);
+    }
+  });
+
+  it("pins the YR4 anchor values and the corrected bbH / WH / ZH", () => {
+    expect(SM_XSEC[13].ggH).toBe(48.58);
+    expect(SM_XSEC[14].ggH).toBe(54.67);
+    expect(SM_XSEC[13].bbH).toBe(0.53); // was wrongly 0.49
+    expect(SM_XSEC[14].WH).toBe(1.51); // was wrongly 1.60
+    expect(SM_XSEC[14].ZH).toBe(0.99); // was wrongly 1.04
+  });
+
+  it("every cross section rises (or holds) monotonically with energy", () => {
+    for (const m of ["ggH", "VBF", "WH", "ZH", "ttH", "bbH", "tH"]) {
+      const seq = [7, 8, 13, 13.6, 14].map((e) => SM_XSEC[e][m]);
+      for (let i = 1; i < seq.length; i++) {
+        expect(seq[i]).toBeGreaterThanOrEqual(seq[i - 1]);
+      }
+    }
+  });
+});
+
+describe("SM_BR branching ratios", () => {
+  it("sum to approximately 1", () => {
+    const sum = Object.values(SM_BR).reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(1, 2);
+  });
+
+  it("pins the YR4 @125.09 values and the corrected gammagamma", () => {
+    expect(SM_BR.bb).toBe(0.5809);
+    expect(SM_BR.gammagamma).toBe(0.00227); // was wrongly 0.00228
+  });
+
+  it("bb is the dominant decay channel", () => {
+    expect(SM_BR.bb).toBe(Math.max(...Object.values(SM_BR)));
+  });
+});
+
+describe("SM_TOTAL_WIDTH", () => {
+  it("is the YR4 @125.09 value of 4.10 MeV (not the older 4.07)", () => {
+    expect(SM_TOTAL_WIDTH).toBeCloseTo(4.1e-3, 6);
   });
 });
 

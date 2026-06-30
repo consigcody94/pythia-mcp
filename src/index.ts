@@ -50,6 +50,9 @@ import {
   parseLilithNdf,
   parseLilithDbVersion,
   parseDbVersionFile,
+  SM_XSEC,
+  SM_BR,
+  SM_TOTAL_WIDTH,
 } from "./utils.js";
 import type { CouplingParams, SignalStrengthParams, ScanParamConfig } from "./utils.js";
 import {
@@ -220,7 +223,7 @@ async function runLilith(args: string[], input?: string): Promise<string> {
 
 // Browser-like UA + JSON Accept. Several physics data portals (notably HEPData,
 // which sits behind Cloudflare) reject requests with no User-Agent.
-const USER_AGENT = "pythia-mcp/1.1 (+https://github.com/consigcody94/pythia-mcp)";
+const USER_AGENT = "pythia-mcp/1.1.1 (+https://github.com/consigcody94/pythia-mcp)";
 const INSPIRE_API = "https://inspirehep.net/api";
 // Cap decoded response size (HEPData records can be large but not unbounded).
 const MAX_HTTP_BYTES = 16 * 1024 * 1024;
@@ -345,7 +348,7 @@ async function fetchInspire(endpoint: string): Promise<unknown> {
 const server = new Server(
   {
     name: "pythia-mcp",
-    version: "1.1.0",
+    version: "1.1.1",
   },
   {
     capabilities: {
@@ -983,7 +986,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         text: JSON.stringify({
           lilithVersion: "2.1",
           databaseVersion: dbVersion,
-          pythiaMCPVersion: "1.1.0"
+          pythiaMCPVersion: "1.1.1"
         }, null, 2)
       }]
     };
@@ -1345,17 +1348,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const allowedEnergies = [7, 8, 13, 13.6, 14];
         const sqrts = params.sqrts && allowedEnergies.includes(params.sqrts) ? params.sqrts : 13;
 
-        // SM predictions from LHC Higgs Cross Section Working Group (YR4 + Run 3 updates)
-        // Cross sections at mH = 125.09 GeV in pb
-        const xsecTable: Record<number, Record<string, number>> = {
-          7:    { ggH: 15.13, VBF: 1.22, WH: 0.58, ZH: 0.34, ttH: 0.09, bbH: 0.16, tH: 0.01 },
-          8:    { ggH: 19.27, VBF: 1.58, WH: 0.70, ZH: 0.42, ttH: 0.13, bbH: 0.20, tH: 0.01 },
-          13:   { ggH: 48.58, VBF: 3.78, WH: 1.37, ZH: 0.88, ttH: 0.51, bbH: 0.49, tH: 0.07 },
-          13.6: { ggH: 52.23, VBF: 4.08, WH: 1.50, ZH: 0.97, ttH: 0.57, bbH: 0.53, tH: 0.08 },
-          14:   { ggH: 54.67, VBF: 4.28, WH: 1.60, ZH: 1.04, ttH: 0.61, bbH: 0.56, tH: 0.08 },
-        };
-
-        const crossSections = xsecTable[sqrts] || xsecTable[13];
+        const crossSections = SM_XSEC[sqrts] || SM_XSEC[13];
 
         const predictions = {
           mass,
@@ -1364,19 +1357,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             ...crossSections,
             unit: "pb",
           },
-          branchingRatios: {
-            bb: 0.5809,
-            WW: 0.2152,
-            gg: 0.0818,
-            tautau: 0.0627,
-            cc: 0.0289,
-            ZZ: 0.0264,
-            gammagamma: 0.00228,
-            Zgamma: 0.00154,
-            mumu: 0.000218,
-          },
-          totalWidth: 4.07e-3, // GeV
-          note: "Cross sections from LHC HXSWG YR4 (7-14 TeV). 13.6 TeV values extrapolated from Run 3 measurements. BRs are mass-dependent; values shown for mH = 125.09 GeV.",
+          branchingRatios: { ...SM_BR },
+          totalWidth: SM_TOTAL_WIDTH, // GeV
+          note:
+            "Cross sections: LHC Higgs XS WG Yellow Report 4 (arXiv:1610.07922) at mH = 125.0 GeV " +
+            "for 7/8/13/14 TeV; 13.6 TeV is the LHCHWG Run-3 ad-interim recommendation (arXiv:2402.09955). " +
+            "tH = tHq + tWH (7/8 TeV approximate). Branching ratios and total width: YR4 at mH = 125.09 GeV. " +
+            "These reference values are for mH near 125 GeV and do not rescale with the 'mass' argument. " +
+            "Current PDG 2024 Higgs mass world average is 125.20 +/- 0.11 GeV.",
         };
 
         return {
@@ -1401,7 +1389,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{
             type: "text",
             text: JSON.stringify({
-              pythiaMCPVersion: "1.1.0",
+              pythiaMCPVersion: "1.1.1",
               lilithVersion: "2.1",
               databaseVersion: dbVersion,
               pythonCommand: PYTHON_CMD,

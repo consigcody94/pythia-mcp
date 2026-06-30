@@ -515,3 +515,42 @@ export function scanPoints2D(
   }
   return points;
 }
+
+// ── Standard Model Higgs reference numbers (literature-sourced, testable) ──
+
+/**
+ * SM Higgs production cross sections (pb), keyed by sqrt(s) in TeV.
+ *
+ * Source: LHC Higgs Cross Section Working Group Yellow Report 4
+ * (arXiv:1610.07922) at mH = 125.0 GeV for 7/8/13/14 TeV. The 13.6 TeV (Run 3)
+ * row is the LHCHWG ad-interim recommendation arXiv:2402.09955 (LHCHWG-2024-001)
+ * at mH = 125.0 GeV. tH = t-channel (tHq) + tW-associated (tWH); the 7/8 TeV tH
+ * entries are approximate (LHCHWG does not tabulate single-top tH at those energies).
+ * 7/8 TeV are the YR3-era NNLO+NNLL values LHCHWG still publishes.
+ */
+export const SM_XSEC: Record<number, Record<string, number>> = {
+  7:    { ggH: 15.13, VBF: 1.22, WH: 0.58, ZH: 0.34, ttH: 0.09, bbH: 0.15, tH: 0.01 },
+  8:    { ggH: 19.27, VBF: 1.58, WH: 0.70, ZH: 0.42, ttH: 0.13, bbH: 0.19, tH: 0.01 },
+  13:   { ggH: 48.58, VBF: 3.78, WH: 1.37, ZH: 0.88, ttH: 0.51, bbH: 0.53, tH: 0.09 },
+  13.6: { ggH: 52.23, VBF: 4.08, WH: 1.46, ZH: 0.94, ttH: 0.57, bbH: 0.53, tH: 0.10 },
+  14:   { ggH: 54.67, VBF: 4.28, WH: 1.51, ZH: 0.99, ttH: 0.61, bbH: 0.60, tH: 0.11 },
+};
+
+/**
+ * SM Higgs decay branching ratios at mH = 125.09 GeV.
+ * Source: LHCHWG YR4 (arXiv:1610.07922), CERNYellowReportPageBR, the mH = 125.09 column.
+ */
+export const SM_BR: Record<string, number> = {
+  bb: 0.5809,
+  WW: 0.2152,
+  gg: 0.0818,
+  tautau: 0.0626,
+  cc: 0.0288,
+  ZZ: 0.0264,
+  gammagamma: 0.00227,
+  Zgamma: 0.00154,
+  mumu: 0.000217,
+};
+
+/** SM Higgs total width (GeV) at mH = 125.09 GeV (LHCHWG YR4): 4.10 MeV. */
+export const SM_TOTAL_WIDTH = 4.10e-3;
