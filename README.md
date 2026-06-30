@@ -13,14 +13,20 @@
 
 <br/>
 
-**Constrain beyond-Standard-Model physics from LHC Higgs measurements — directly from Claude.**
+**Constrain beyond-Standard-Model physics from LHC Higgs measurements, directly from Claude.**
 
 Pythia wraps the [Lilith](https://github.com/sabinekraml/Lilith-2) library as an MCP server,<br/>
 giving AI assistants access to 24 particle physics analysis tools.
 
 <br/>
 
-[Getting Started](#getting-started) &ensp;&bull;&ensp; [Tools](#tools) &ensp;&bull;&ensp; [Examples](#examples) &ensp;&bull;&ensp; [Architecture](#architecture) &ensp;&bull;&ensp; [Citations](#citations)
+⚸ &ensp; ☽ &ensp; ✦ &ensp; ☾ &ensp; ⚸
+
+<sub>*the oracle speaks for the Higgs; the night-engine does the math*</sub>
+
+<br/>
+
+[The Oracle &amp; the Night](#-the-oracle-and-the-night) &ensp;&bull;&ensp; [Getting Started](#getting-started) &ensp;&bull;&ensp; [Tools](#tools) &ensp;&bull;&ensp; [Examples](#examples) &ensp;&bull;&ensp; [Architecture](#architecture) &ensp;&bull;&ensp; [Citations](#citations)
 
 </div>
 
@@ -39,9 +45,31 @@ Pythia bridges this frontier physics with conversational AI. Instead of manually
 
 > *"What constraints does LHC data place on a Type-II two-Higgs-doublet model with tan(beta) = 2?"*
 
-Under the hood, Pythia generates validated XML input, invokes Lilith's likelihood engine against the full ATLAS + CMS dataset, and returns structured results &mdash; all through the [Model Context Protocol](https://modelcontextprotocol.io).
+Under the hood, Pythia generates validated XML input, invokes Lilith's likelihood engine against the full ATLAS + CMS dataset, and returns structured results, all through the [Model Context Protocol](https://modelcontextprotocol.io).
 
 <br/>
+
+<div align="center">
+
+⚸ &ensp;&bull;&ensp; ☽ &ensp;&bull;&ensp; ✦ &ensp;&bull;&ensp; ☾ &ensp;&bull;&ensp; ⚸
+
+</div>
+
+## ⚸ The Oracle and the Night
+
+Two names sit at the heart of this project, and both were chosen on purpose.
+
+**Pythia** &mdash; though here we mean not the event generator but the *Pythia*, the priestess of the Oracle at Delphi. She breathed the vapors that rose from the cleft in the rock and gave answers to the questions mortals feared to ask. This server is her modern tripod: you put a question to the Higgs sector in plain language, and the oracle answers from the data.
+
+**Lilith ⚸** is the engine beneath the floor. Its authors named it *Light Likelihood Fit for the Higgs*, and also, knowingly, after the lady of the night from the older stories. Pythia keeps the double meaning. The ⚸ glyph is the **Black Moon, Lilith's own sigil** &mdash; the empty focus of the Moon's orbit, the point you only find by where everything else turns around it. Fitting, for a hunt after new physics in the places the Standard Model leaves dark.
+
+> The sigils are a lens for thinking, never evidence. Every number Pythia returns comes from ATLAS and CMS, not from omens. The Higgs, so far, is stubbornly Standard-Model-like &mdash; and saying so honestly is the whole point of a likelihood fit.
+
+<div align="center">
+
+☾ &ensp;&bull;&ensp; ✦ &ensp;&bull;&ensp; ⚸ &ensp;&bull;&ensp; ✦ &ensp;&bull;&ensp; ☽
+
+</div>
 
 ## Getting Started
 
@@ -223,8 +251,8 @@ pythia-mcp/
 │   ├── index.ts           # MCP server, request handlers, tool dispatch
 │   ├── utils.ts           # Validation, XML generation, physics models
 │   ├── ingest.ts          # Data ingestion: HEPData -> Lilith <expmu>, parser, builder
-│   ├── utils.test.ts      # Unit tests (90 tests via Vitest)
-│   └── ingest.test.ts     # Ingestion tests (14 tests; round-trips all 87 real files)
+│   ├── utils.test.ts      # Unit tests (116 tests via Vitest)
+│   └── ingest.test.ts     # Ingestion tests (16 tests; round-trips all 87 real files)
 ├── lilith/                # Bundled Lilith-2 library
 │   ├── run_lilith.py      # CLI entry point
 │   ├── lilith/            # Core Python package
@@ -244,7 +272,8 @@ pythia-mcp/
 - **XML injection prevention** &mdash; All user-supplied values are escaped before embedding in XML.
 - **Path traversal protection** &mdash; Dataset paths are resolved and verified against a base directory.
 - **ReDoS prevention** &mdash; User-supplied regex patterns are length-limited and checked for dangerous constructs.
-- **API safety** &mdash; HTTP requests enforce 30s timeouts, redirect depth limits, and response caching with TTL.
+- **API safety** &mdash; HTTP requests enforce 30s timeouts, redirect depth limits, and response caching with TTL. Redirects are only followed to an allowlist of physics-data hosts over HTTPS, so an open-redirect upstream cannot be used for SSRF.
+- **XXE prevention** &mdash; XML submitted to `validate_input` is rejected if it declares a DOCTYPE or ENTITY, since the underlying parser resolves entities.
 - **Subprocess limits** &mdash; Python process output is capped at 1 MB to prevent memory exhaustion.
 
 <br/>
@@ -295,6 +324,19 @@ npm run dev          # Run with ts-node (development)
 }
 ```
 
+### ⚸ Dedication
+
+For [**Sabine Kraml**](https://github.com/sabinekraml) ([@sabinekraml](https://github.com/sabinekraml)) and the Lilith team, who built the engine that does all the physics here. A small dedication, in the old tongue:
+
+> *Nescio num vere Lilith, Sabina, voces,*<br/>
+> *an iocus iste tuus, noctis an umbra redit.*<br/>
+> *Quidquid agis, faveo tibi plaudoque libenter;*<br/>
+> *si iuvet ulla manus, tu modo, diva, voca.*
+
+<sub>*I do not know whether you are truly calling Lilith, Sabine, or whether this is your jest, or whether night's own shadow returns. Whatever you are doing, I favor it and applaud it gladly; if any hand may help, you, illustrious one, need only call.* ⚸</sub>
+
+<br/>
+
 ### Acknowledgments
 
 | | |
@@ -329,9 +371,11 @@ npm run dev          # Run with ts-node (development)
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:161b22,100:1a1e2e&height=100&section=footer"/>
 
+⚸ &ensp; ☽ &ensp; ✦ &ensp; ☾ &ensp; ⚸
+
 *"The Higgs boson is the key to understanding the origin of mass in the universe."*<br/>
 &mdash; Peter Higgs
 
-<sub>Built for open science and particle physics research.</sub>
+<sub>The oracle answers only from the data. Built for open science and particle physics research.</sub>
 
 </div>

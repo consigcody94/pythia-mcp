@@ -212,3 +212,50 @@ describe("summarizers & response classification", () => {
     expect(classifyResponse(200, "application/json", "")).toBe("empty");
   });
 });
+
+// The conversion users actually depend on: HEPData table -> measurement ->
+// <expmu> -> parsed back. The two halves are tested in isolation above; this
+// pins the composition the ingest_hepdata_record handler runs.
+describe("extract -> build -> parse round-trip (handler composition)", () => {
+  it("a ggH/gammagamma signal-strength row survives to an <expmu> with the same mu and asymmetric uncertainties", () => {
+    const table: HEPDataTable = {
+      dependent_variables: [{
+        header: { name: "Signal strength mu" },
+        qualifiers: [{ name: "Production", value: "ggH" }, { name: "Decay", value: "gamma gamma" }],
+        values: [{ value: 1.1, errors: [{ asymerror: { plus: 0.2, minus: -0.18 } }] }],
+      }],
+    };
+    const { measurements } = extractMeasurementsFromHEPDataTable(table);
+    const m = measurements.find(
+      (x) => x.prod && x.decay && x.uncLeft !== undefined && x.uncRight !== undefined && Number.isFinite(x.mu)
+    );
+    expect(m).toBeDefined();
+    const xml = buildExpMu1D({
+      decay: m!.decay!, prod: m!.prod!, experiment: "ATLAS", source: "ROUNDTRIP",
+      mu: m!.mu, uncLeft: m!.uncLeft!, uncRight: m!.uncRight!,
+    });
+    const p = parseExpMu(xml);
+    expect(p.decay).toBe("gammagamma");
+    expect(p.bestfit1d).toBeCloseTo(1.1, 6);
+    expect(p.uncLeft).toBeCloseTo(-0.18, 6);
+    expect(p.uncRight).toBeCloseTo(0.2, 6);
+  });
+
+  it("a measurement with prod/decay but no uncertainties does not qualify for building (must not become a NaN file)", () => {
+    const table: HEPDataTable = {
+      dependent_variables: [{
+        header: { name: "mu" },
+        qualifiers: [{ name: "Production", value: "ggH" }, { name: "Decay", value: "ZZ" }],
+        values: [{ value: 1.0 }], // no errors
+      }],
+    };
+    const { measurements } = extractMeasurementsFromHEPDataTable(table);
+    expect(measurements).toHaveLength(1);
+    const m = measurements[0];
+    expect(m.uncLeft).toBeUndefined();
+    expect(m.uncRight).toBeUndefined();
+    // mirror the handler guard in ingest_hepdata_record
+    const qualifies = !!(m.prod && m.decay && m.uncLeft !== undefined && m.uncRight !== undefined && Number.isFinite(m.mu));
+    expect(qualifies).toBe(false);
+  });
+});

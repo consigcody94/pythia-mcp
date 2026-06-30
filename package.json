@@ -1,6 +1,6 @@
 {
   "name": "@codymaryland/pythia-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Pythia: An MCP Server for Higgs Boson Phenomenology - Interface to the Lilith framework for constraining new physics from LHC Higgs measurements",
   "main": "dist/index.js",
   "type": "module",
@@ -33,12 +33,12 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/codymaryland/pythia-mcp.git"
+    "url": "git+https://github.com/consigcody94/pythia-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/codymaryland/pythia-mcp/issues"
+    "url": "https://github.com/consigcody94/pythia-mcp/issues"
   },
-  "homepage": "https://github.com/codymaryland/pythia-mcp#readme",
+  "homepage": "https://github.com/consigcody94/pythia-mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
   },

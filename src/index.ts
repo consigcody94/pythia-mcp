@@ -43,6 +43,13 @@ import {
   chi2PValue,
   ALLOWED_PRODUCTION_MODES,
   ALLOWED_DECAY_MODES,
+  ALLOWED_SCAN_PARAMS,
+  scanPoints1D,
+  scanPoints2D,
+  parseLilithLikelihood,
+  parseLilithNdf,
+  parseLilithDbVersion,
+  parseDbVersionFile,
 } from "./utils.js";
 import type { CouplingParams, SignalStrengthParams, ScanParamConfig } from "./utils.js";
 import {
@@ -81,6 +88,16 @@ const MAX_CONCURRENT_SCANS = 10;
 
 // Maximum HTTP redirect depth
 const MAX_REDIRECTS = 5;
+
+// Hosts httpGetJson is allowed to talk to, including across redirects. Redirects
+// are only followed to these hosts over https, so a misbehaving or open-redirect
+// upstream cannot turn this server into an SSRF proxy into the local network.
+const ALLOWED_FETCH_HOSTS = new Set([
+  "www.hepdata.net",
+  "hepdata.net",
+  "opendata.cern.ch",
+  "inspirehep.net",
+]);
 
 // Maximum subprocess output size (1MB)
 const MAX_SUBPROCESS_OUTPUT = 1024 * 1024;
@@ -203,7 +220,7 @@ async function runLilith(args: string[], input?: string): Promise<string> {
 
 // Browser-like UA + JSON Accept. Several physics data portals (notably HEPData,
 // which sits behind Cloudflare) reject requests with no User-Agent.
-const USER_AGENT = "pythia-mcp/1.0 (+https://github.com/consigcody94/pythia-mcp)";
+const USER_AGENT = "pythia-mcp/1.1 (+https://github.com/consigcody94/pythia-mcp)";
 const INSPIRE_API = "https://inspirehep.net/api";
 // Cap decoded response size (HEPData records can be large but not unbounded).
 const MAX_HTTP_BYTES = 16 * 1024 * 1024;
@@ -231,9 +248,19 @@ async function httpGetJson(
       { headers: { "User-Agent": USER_AGENT, Accept: "application/json", "Accept-Encoding": "gzip, deflate" } },
       (res) => {
         if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          const next = new URL(res.headers.location, url).toString();
-          httpGetJson(next, { cacheKey, label, redirectCount: redirectCount + 1 }).then(resolve).catch(reject);
           res.resume();
+          let next: URL;
+          try {
+            next = new URL(res.headers.location, url);
+          } catch {
+            reject(new Error(`${label}: invalid redirect Location header`));
+            return;
+          }
+          if (next.protocol !== "https:" || !ALLOWED_FETCH_HOSTS.has(next.hostname)) {
+            reject(new Error(`${label}: refusing redirect to disallowed host "${next.hostname}"`));
+            return;
+          }
+          httpGetJson(next.toString(), { cacheKey, label, redirectCount: redirectCount + 1 }).then(resolve).catch(reject);
           return;
         }
 
@@ -318,7 +345,7 @@ async function fetchInspire(endpoint: string): Promise<unknown> {
 const server = new Server(
   {
     name: "pythia-mcp",
-    version: "1.0.0",
+    version: "1.1.0",
   },
   {
     capabilities: {
@@ -444,10 +471,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "number",
               description: "Number of degrees of freedom"
             },
+            smLikelihood: {
+              type: "number",
+              description: "Standard Model -2 log L (from compute_sm_likelihood). Used when reference='SM' to form delta chi-square; defaults to 0."
+            },
             reference: {
               type: "string",
               enum: ["SM", "bestfit"],
-              description: "Reference point for comparison"
+              description: "Reference point for comparison. 'SM': deltaChi2 = likelihood - smLikelihood. 'bestfit': the likelihood value is treated as the delta chi-square directly."
             }
           },
           required: ["likelihood", "ndf"]
@@ -940,7 +971,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     let dbVersion = "unknown";
     try {
       const content = await fs.readFile(versionFile, "utf-8");
-      dbVersion = content.trim().split("\n")[1] || "unknown";
+      dbVersion = parseDbVersionFile(content);
     } catch {
       // File doesn't exist, use default
     }
@@ -952,7 +983,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         text: JSON.stringify({
           lilithVersion: "2.1",
           databaseVersion: dbVersion,
-          pythiaMCPVersion: "1.0.0"
+          pythiaMCPVersion: "1.1.0"
         }, null, 2)
       }]
     };
@@ -1020,19 +1051,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ]);
 
           // Parse output
-          const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
-          const ndfMatch = output.match(/Ndof\s*=\s*(\d+)/);
-          const dbVersionMatch = output.match(/database version\s+([\d.]+)/);
+          const likelihood = parseLilithLikelihood(output);
 
           return {
             content: [{
               type: "text",
               text: JSON.stringify({
-                likelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null,
-                ndf: ndfMatch ? parseInt(ndfMatch[1]) : null,
-                dbVersion: dbVersionMatch ? dbVersionMatch[1] : "unknown",
+                likelihood,
+                ndf: parseLilithNdf(output),
+                dbVersion: parseLilithDbVersion(output),
                 rawOutput: output,
-                inputXML: xmlInput
+                inputXML: xmlInput,
+                ...(likelihood === null
+                  ? { warning: "Could not parse -2log(likelihood) from Lilith output; see rawOutput." }
+                  : {})
               }, null, 2)
             }]
           };
@@ -1065,14 +1097,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             expInput
           ]);
 
-          const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
+          const smLikelihood = parseLilithLikelihood(output);
 
           return {
             content: [{
               type: "text",
               text: JSON.stringify({
-                smLikelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null,
-                description: "Standard Model reference likelihood (-2 log L)"
+                smLikelihood,
+                description: "Standard Model reference likelihood (-2 log L)",
+                ...(smLikelihood === null
+                  ? { warning: "Could not parse -2log(likelihood) from Lilith output.", rawOutput: output }
+                  : {})
               }, null, 2)
             }]
           };
@@ -1259,6 +1294,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const since = params.since && dateRegex.test(params.since) ? params.since : "2023-01-01";
 
         const searchResults: unknown[] = [];
+        const errors: string[] = [];
         const collabs = collaboration === "all" ? ["ATLAS", "CMS"] : [collaboration];
 
         for (const collab of collabs) {
@@ -1273,8 +1309,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 collaboration: collab
               })));
             }
-          } catch {
-            // Continue on error
+          } catch (e) {
+            // Surface the reason instead of silently reporting "0 new records".
+            errors.push(`${collab}: ${e instanceof Error ? e.message : "unknown error"}`);
           }
         }
 
@@ -1286,9 +1323,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               since,
               newRecordsFound: searchResults.length,
               records: searchResults.slice(0, 20), // Return first 20
-              message: params.checkOnly
-                ? "Use checkOnly: false to download and integrate new data"
-                : "Data integration not yet implemented - manual review required"
+              ...(errors.length ? { errors } : {}),
+              message: errors.length
+                ? "HEPData search did not return results. Its /search/ endpoint is often behind Cloudflare bot protection; use search_inspire for discovery, then ingest_hepdata_record."
+                : params.checkOnly
+                  ? "Use checkOnly: false to download and integrate new data"
+                  : "Data integration not yet implemented - manual review required"
             }, null, 2)
           }]
         };
@@ -1352,7 +1392,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         let dbVersion = "unknown";
         try {
           const content = await fs.readFile(versionFile, "utf-8");
-          dbVersion = content.trim();
+          dbVersion = parseDbVersionFile(content);
         } catch {
           // File doesn't exist, use default
         }
@@ -1361,7 +1401,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{
             type: "text",
             text: JSON.stringify({
-              pythiaMCPVersion: "1.0.0",
+              pythiaMCPVersion: "1.1.0",
               lilithVersion: "2.1",
               databaseVersion: dbVersion,
               pythonCommand: PYTHON_CMD,
@@ -1376,24 +1416,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const params = args as { param: ScanParamConfig; fixedParams?: CouplingParams };
         const { param, fixedParams = {} } = params;
 
-        // Validate scan parameters
+        if (!param || typeof param.name !== "string") {
+          throw new Error("param.name is required");
+        }
+        if (!ALLOWED_SCAN_PARAMS.has(param.name)) {
+          throw new Error(`Invalid scan parameter "${param.name}". Allowed: ${[...ALLOWED_SCAN_PARAMS].join(", ")}`);
+        }
+
+        // Validate scan parameters (steps >= 2 so the scan spans a real range)
         validateNumber(param.min, "param.min", -100, 100);
         validateNumber(param.max, "param.max", -100, 100);
-        validateNumber(param.steps, "param.steps", 1, 1000);
+        validateNumber(param.steps, "param.steps", 2, 1000);
 
         if (param.min >= param.max) {
           throw new Error("param.min must be less than param.max");
         }
 
-        const step = (param.max - param.min) / (param.steps - 1);
-
-        // Generate scan points
-        const scanPoints = Array.from({ length: param.steps }, (_, i) => ({
-          index: i,
-          value: param.min + i * step
+        // Generate scan points (scanPoints1D guards the steps<=1 divide-by-zero)
+        const scanPoints = scanPoints1D(param.min, param.max, param.steps).map((value, index) => ({
+          index,
+          value,
         }));
 
-        // Run scans in parallel with concurrency limit
+        // Run scans in parallel with concurrency limit. A single failing point
+        // must not abort the whole scan, so per-point errors resolve to null.
         const scanResults = await parallelLimit(
           scanPoints,
           MAX_CONCURRENT_SCANS,
@@ -1404,9 +1450,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
             await fs.writeFile(tmpFile, xmlInput);
             try {
-              const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-s"]);
-              const match = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
-              return match ? { value: point.value, likelihood: parseFloat(match[1]) } : null;
+              // -v (not -s): silent mode suppresses the likelihood line entirely.
+              const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-v"]);
+              const likelihood = parseLilithLikelihood(output);
+              return likelihood === null ? null : { value: point.value, likelihood };
+            } catch {
+              return null;
             } finally {
               await cleanupTempFile(tmpFile);
             }
@@ -1417,7 +1466,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const results = scanResults.filter((r): r is { value: number; likelihood: number } => r !== null);
 
         if (results.length === 0) {
-          throw new Error("All scan points failed");
+          throw new Error("All scan points failed (check that Lilith runs: try compute_likelihood first)");
         }
 
         // Find minimum and compute delta chi2
@@ -1433,6 +1482,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             text: JSON.stringify({
               parameter: param.name,
               range: { min: param.min, max: param.max, steps: param.steps },
+              pointsComputed: results.length,
+              pointsFailed: scanPoints.length - results.length,
               minimumLikelihood: minL,
               results: resultsWithDelta
             }, null, 2)
@@ -1444,35 +1495,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const params = args as { param1: ScanParamConfig; param2: ScanParamConfig; fixedParams?: CouplingParams };
         const { param1, param2, fixedParams = {} } = params;
 
-        // Validate scan parameters
+        if (!param1 || typeof param1.name !== "string" || !param2 || typeof param2.name !== "string") {
+          throw new Error("param1.name and param2.name are required");
+        }
+        for (const name of [param1.name, param2.name]) {
+          if (!ALLOWED_SCAN_PARAMS.has(name)) {
+            throw new Error(`Invalid scan parameter "${name}". Allowed: ${[...ALLOWED_SCAN_PARAMS].join(", ")}`);
+          }
+        }
+        if (param1.name === param2.name) {
+          throw new Error("param1 and param2 must scan different parameters");
+        }
+
+        // Validate scan parameters (steps >= 2 so each axis spans a real range)
         validateNumber(param1.min, "param1.min", -100, 100);
         validateNumber(param1.max, "param1.max", -100, 100);
-        validateNumber(param1.steps, "param1.steps", 1, 100);
+        validateNumber(param1.steps, "param1.steps", 2, 100);
         validateNumber(param2.min, "param2.min", -100, 100);
         validateNumber(param2.max, "param2.max", -100, 100);
-        validateNumber(param2.steps, "param2.steps", 1, 100);
+        validateNumber(param2.steps, "param2.steps", 2, 100);
 
         if (param1.min >= param1.max || param2.min >= param2.max) {
           throw new Error("min must be less than max for both parameters");
         }
 
-        const step1 = (param1.max - param1.min) / (param1.steps - 1);
-        const step2 = (param2.max - param2.min) / (param2.steps - 1);
+        // Generate all scan points (scanPoints2D guards the steps<=1 divide-by-zero)
+        const scanPoints = scanPoints2D(
+          param1.min, param1.max, param1.steps,
+          param2.min, param2.max, param2.steps
+        );
 
-        // Generate all scan points
-        const scanPoints: { i: number; j: number; val1: number; val2: number }[] = [];
-        for (let i = 0; i < param1.steps; i++) {
-          for (let j = 0; j < param2.steps; j++) {
-            scanPoints.push({
-              i,
-              j,
-              val1: param1.min + i * step1,
-              val2: param2.min + j * step2
-            });
-          }
-        }
-
-        // Run scans in parallel with concurrency limit
+        // Run scans in parallel with concurrency limit. A single failing point
+        // must not abort the whole scan, so per-point errors resolve to null.
         const scanResults = await parallelLimit(
           scanPoints,
           MAX_CONCURRENT_SCANS,
@@ -1488,9 +1542,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
             await fs.writeFile(tmpFile, xmlInput);
             try {
-              const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-s"]);
-              const match = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
-              return match ? { x: point.val1, y: point.val2, likelihood: parseFloat(match[1]) } : null;
+              // -v (not -s): silent mode suppresses the likelihood line entirely.
+              const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-v"]);
+              const likelihood = parseLilithLikelihood(output);
+              return likelihood === null ? null : { x: point.val1, y: point.val2, likelihood };
+            } catch {
+              return null;
             } finally {
               await cleanupTempFile(tmpFile);
             }
@@ -1501,7 +1558,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const results = scanResults.filter((r): r is { x: number; y: number; likelihood: number } => r !== null);
 
         if (results.length === 0) {
-          throw new Error("All scan points failed");
+          throw new Error("All scan points failed (check that Lilith runs: try compute_likelihood first)");
         }
 
         const minL = Math.min(...results.map(r => r.likelihood));
@@ -1512,6 +1569,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             text: JSON.stringify({
               param1: { name: param1.name, min: param1.min, max: param1.max },
               param2: { name: param2.name, min: param2.min, max: param2.max },
+              pointsComputed: results.length,
+              pointsFailed: scanPoints.length - results.length,
               minimumLikelihood: minL,
               results: results.map(r => ({
                 ...r,
@@ -1542,8 +1601,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const sinBetaMinusAlpha = validateNumber(params.sinBetaMinusAlpha, "sinBetaMinusAlpha", -1, 1);
         const mass = validateMass(params.mass);
 
-        const cosBetaMinusAlpha = Math.sqrt(1 - sinBetaMinusAlpha ** 2);
-        const { CV, Ct, Cb, Ctau } = compute2HDMCouplings(params.type, tanBeta, sinBetaMinusAlpha);
+        const { CV, Ct, Cb, Ctau, cosBetaMinusAlpha } = compute2HDMCouplings(params.type, tanBeta, sinBetaMinusAlpha);
 
         // Compute likelihood for these couplings
         const xmlInput = generateReducedCouplingsXML({
@@ -1560,8 +1618,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         await fs.writeFile(tmpFile, xmlInput);
 
         try {
-          const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list"]);
-          const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
+          const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-v"]);
 
           return {
             content: [{
@@ -1573,13 +1630,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   sinBetaMinusAlpha,
                   cosBetaMinusAlpha
                 },
+                note: "cos(beta - alpha) is taken as the non-negative root; the wrong-sign coupling region (cos(beta - alpha) < 0) is not explored by this tool.",
                 reducedCouplings: {
                   CV,
                   Ct,
                   Cb,
                   Ctau
                 },
-                likelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null
+                likelihood: parseLilithLikelihood(output)
               }, null, 2)
             }]
           };
@@ -1612,8 +1670,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         await fs.writeFile(tmpFile, xmlInput);
 
         try {
-          const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list"]);
-          const likelihoodMatch = output.match(/-2log\(likelihood\)\s*=\s*([\d.]+)/);
+          const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-v"]);
 
           return {
             content: [{
@@ -1628,7 +1685,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 reducedCouplings: {
                   C: cosMix // Universal scaling
                 },
-                likelihood: likelihoodMatch ? parseFloat(likelihoodMatch[1]) : null
+                likelihood: parseLilithLikelihood(output)
               }, null, 2)
             }]
           };
@@ -1750,6 +1807,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // Limit XML size to prevent DoS
         if (params.xml.length > 100000) {
           throw new Error("XML input too large (max 100KB)");
+        }
+
+        // Block DOCTYPE/ENTITY declarations: Lilith parses with lxml, which
+        // resolves entities by default (XXE / billion-laughs). Lilith input
+        // never needs a DTD, so refuse it outright.
+        if (/<!DOCTYPE/i.test(params.xml) || /<!ENTITY/i.test(params.xml)) {
+          throw new Error("XML DOCTYPE/ENTITY declarations are not allowed");
         }
 
         const tmpFile = generateTempFilename("validate");

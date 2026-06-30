@@ -31,7 +31,7 @@ export function validateNumber(value: unknown, name: string, min: number, max: n
 }
 
 /**
- * Validate coupling parameter (typically -10 to 10)
+ * Validate coupling parameter (allowed range -100 to 100; SM value is 1)
  */
 export function validateCoupling(value: unknown, name: string): number {
   if (value === undefined || value === null) {
@@ -296,7 +296,7 @@ export function compute2HDMCouplings(
   type: "I" | "II" | "L" | "F",
   tanBeta: number,
   sinBetaMinusAlpha: number
-): { CV: number; Ct: number; Cb: number; Ctau: number } {
+): { CV: number; Ct: number; Cb: number; Ctau: number; cosBetaMinusAlpha: number } {
   // Clamp to avoid NaN from floating-point imprecision when sinBetaMinusAlpha ≈ ±1
   const cosBetaMinusAlpha = Math.sqrt(Math.max(0, 1 - sinBetaMinusAlpha ** 2));
   const CV = sinBetaMinusAlpha;
@@ -325,31 +325,78 @@ export function compute2HDMCouplings(
       break;
   }
 
-  return { CV, Ct, Cb, Ctau };
+  return { CV, Ct, Cb, Ctau, cosBetaMinusAlpha };
 }
 
 /**
- * Approximate the regularized lower incomplete gamma function P(a, x)
- * using a series expansion. This is used for chi-square CDF computation.
+ * Series expansion for the regularized lower incomplete gamma P(a, x).
+ * Accurate (and rapidly convergent) for x < a + 1. Numerical Recipes "gser".
+ */
+function gammaSeriesP(a: number, x: number): number {
+  if (x <= 0) return 0;
+  const lnGammaA = lnGamma(a);
+  let ap = a;
+  let sum = 1 / a;
+  let del = sum;
+  for (let n = 0; n < 1000; n++) {
+    ap += 1;
+    del *= x / ap;
+    sum += del;
+    if (Math.abs(del) < Math.abs(sum) * 1e-15) break;
+  }
+  return sum * Math.exp(-x + a * Math.log(x) - lnGammaA);
+}
+
+/**
+ * Continued-fraction expansion for the regularized upper incomplete gamma
+ * Q(a, x) = 1 - P(a, x). Accurate for x >= a + 1. Numerical Recipes "gcf".
+ *
+ * Computing Q directly (rather than 1 - P) is what keeps very small upper-tail
+ * probabilities — p-values for large chi-square — accurate instead of
+ * collapsing to the ~1e-16 floor of (1 - P).
+ */
+function gammaContinuedFractionQ(a: number, x: number): number {
+  const lnGammaA = lnGamma(a);
+  const FPMIN = 1e-300;
+  let b = x + 1 - a;
+  let c = 1 / FPMIN;
+  let d = 1 / b;
+  let h = d;
+  for (let i = 1; i < 1000; i++) {
+    const an = -i * (i - a);
+    b += 2;
+    d = an * d + b;
+    if (Math.abs(d) < FPMIN) d = FPMIN;
+    c = b + an / c;
+    if (Math.abs(c) < FPMIN) c = FPMIN;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < 1e-15) break;
+  }
+  return Math.exp(-x + a * Math.log(x) - lnGammaA) * h;
+}
+
+/**
+ * Regularized lower incomplete gamma function P(a, x) = gamma(a, x) / Gamma(a).
+ * Switches between the series and continued-fraction forms at x = a + 1 so it
+ * stays accurate across the whole range (the old series-only version diverged
+ * for large x). Used for the chi-square CDF.
  */
 export function lowerIncompleteGamma(a: number, x: number): number {
-  if (x < 0) return 0;
-  if (x === 0) return 0;
+  if (x <= 0) return 0;
+  if (x < a + 1) return gammaSeriesP(a, x);
+  return 1 - gammaContinuedFractionQ(a, x);
+}
 
-  // Use series expansion: P(a,x) = e^(-x) * x^a * sum(x^n / gamma(a+n+1))
-  const lnGammaA = lnGamma(a);
-  let sum = 0;
-  let term = 1 / a;
-  sum = term;
-
-  for (let n = 1; n < 200; n++) {
-    term *= x / (a + n);
-    sum += term;
-    if (Math.abs(term) < 1e-14 * Math.abs(sum)) break;
-  }
-
-  const result = Math.exp(-x + a * Math.log(x) - lnGammaA) * sum;
-  return Math.min(Math.max(result, 0), 1);
+/**
+ * Regularized upper incomplete gamma Q(a, x) = Gamma(a, x) / Gamma(a) = 1 - P(a, x),
+ * computed directly so deep-tail values do not underflow through (1 - P).
+ */
+export function upperIncompleteGamma(a: number, x: number): number {
+  if (x <= 0) return 1;
+  if (x < a + 1) return 1 - gammaSeriesP(a, x);
+  return gammaContinuedFractionQ(a, x);
 }
 
 /**
@@ -392,9 +439,79 @@ export function chi2CDF(x: number, k: number): number {
 }
 
 /**
- * Compute p-value from chi-square statistic
- * p = 1 - CDF(chi2, ndf) = probability of observing a value >= chi2
+ * Compute p-value from chi-square statistic.
+ * p = P(chi2 distribution >= observed) = Q(ndf/2, chi2/2), computed directly
+ * via the upper incomplete gamma so the deep tail (large chi2) stays accurate.
  */
 export function chi2PValue(chi2: number, ndf: number): number {
-  return 1 - chi2CDF(chi2, ndf);
+  if (chi2 <= 0) return 1;
+  return upperIncompleteGamma(ndf / 2, chi2 / 2);
+}
+
+// ── Lilith output parsing (pure, so the handlers in index.ts stay testable) ──
+
+/**
+ * Parse the "-2log(likelihood) = <value>" line from Lilith stdout.
+ * Tolerates a leading sign and scientific notation (e.g. 1.2e-05), which the
+ * old [\d.]+ pattern silently mis-parsed.
+ */
+export function parseLilithLikelihood(output: string): number | null {
+  const m = output.match(/-2log\(likelihood\)\s*=\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/);
+  return m ? parseFloat(m[1]) : null;
+}
+
+/** Parse "Ndof = <int>" from Lilith stdout. */
+export function parseLilithNdf(output: string): number | null {
+  const m = output.match(/Ndof\s*=\s*(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/** Parse "database version <token>" from Lilith stdout (keeps suffixes like "dev"). */
+export function parseLilithDbVersion(output: string): string {
+  const m = output.match(/database version\s+(\S+)/);
+  return m ? m[1] : "unknown";
+}
+
+/**
+ * Parse the bundled `data/version` file: first non-empty, non-comment line.
+ * The file is "# comment\n<version>", so a naive trim() would return the
+ * comment too — this returns just the version token.
+ */
+export function parseDbVersionFile(fileContent: string): string {
+  const line = fileContent
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .find((l) => l.length > 0 && !l.startsWith("#"));
+  return line ?? "unknown";
+}
+
+/** Coupling/parameter names a scan is allowed to vary (everything generateReducedCouplingsXML reads). */
+export const ALLOWED_SCAN_PARAMS = new Set([
+  "mass", "CV", "CF", "Ct", "Cb", "Cc", "Ctau", "Cmu", "Cg", "Cgamma", "CZgamma", "BRinv", "BRundet",
+]);
+
+/**
+ * Evenly spaced scan points across [min, max] inclusive.
+ * Guards steps <= 1 so it never divides by zero (which produced NaN points).
+ */
+export function scanPoints1D(min: number, max: number, steps: number): number[] {
+  if (steps <= 1) return [min];
+  const step = (max - min) / (steps - 1);
+  return Array.from({ length: steps }, (_, i) => min + i * step);
+}
+
+/** Cartesian grid of scan points for a 2D scan, carrying the (i, j) indices. */
+export function scanPoints2D(
+  min1: number, max1: number, steps1: number,
+  min2: number, max2: number, steps2: number
+): Array<{ i: number; j: number; val1: number; val2: number }> {
+  const xs = scanPoints1D(min1, max1, steps1);
+  const ys = scanPoints1D(min2, max2, steps2);
+  const points: Array<{ i: number; j: number; val1: number; val2: number }> = [];
+  for (let i = 0; i < xs.length; i++) {
+    for (let j = 0; j < ys.length; j++) {
+      points.push({ i, j, val1: xs[i], val2: ys[j] });
+    }
+  }
+  return points;
 }

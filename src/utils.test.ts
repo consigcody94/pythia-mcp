@@ -13,10 +13,18 @@ import {
   compute2HDMCouplings,
   lnGamma,
   lowerIncompleteGamma,
+  upperIncompleteGamma,
   chi2CDF,
   chi2PValue,
   ALLOWED_PRODUCTION_MODES,
   ALLOWED_DECAY_MODES,
+  ALLOWED_SCAN_PARAMS,
+  scanPoints1D,
+  scanPoints2D,
+  parseLilithLikelihood,
+  parseLilithNdf,
+  parseLilithDbVersion,
+  parseDbVersionFile,
 } from "./utils.js";
 
 // ── escapeXml ──────────────────────────────────────────────
@@ -556,6 +564,162 @@ describe("chi2PValue", () => {
   it("2σ threshold: chi2=4 gives p ≈ 0.046 for 1 dof", () => {
     const pval = chi2PValue(4, 1);
     expect(pval).toBeCloseTo(0.0455, 2);
+  });
+});
+
+// ── chi2PValue deep tail (regression: series-only version diverged) ──
+
+describe("chi2PValue deep tail", () => {
+  it("stays accurate far in the tail instead of flooring at ~1e-15", () => {
+    // Reference values from the regularized upper incomplete gamma (scipy chi2.sf).
+    expect(chi2PValue(100, 1)).toBeLessThan(1e-20);
+    expect(chi2PValue(100, 1)).toBeGreaterThan(1e-25);
+  });
+
+  it("does NOT report a wildly-excluded model as a good fit", () => {
+    // The old implementation returned ~0.48 here (a 'compatible' p-value!).
+    const p = chi2PValue(400, 2);
+    expect(p).toBeLessThan(1e-50);
+  });
+
+  it("is monotonically non-increasing as chi2 grows", () => {
+    let prev = 1;
+    for (const chi2 of [1, 5, 20, 50, 100, 200, 400]) {
+      const p = chi2PValue(chi2, 2);
+      expect(p).toBeLessThanOrEqual(prev + 1e-12);
+      prev = p;
+    }
+  });
+
+  it("returns 1 for chi2 <= 0", () => {
+    expect(chi2PValue(0, 5)).toBe(1);
+    expect(chi2PValue(-3, 5)).toBe(1);
+  });
+});
+
+// ── upperIncompleteGamma ─────────────────────────────────
+
+describe("upperIncompleteGamma", () => {
+  it("Q(a,x) = 1 - P(a,x)", () => {
+    for (const [a, x] of [[1, 0.5], [2, 3], [3.5, 2]] as const) {
+      expect(upperIncompleteGamma(a, x) + lowerIncompleteGamma(a, x)).toBeCloseTo(1, 10);
+    }
+  });
+
+  it("Q(1, x) = e^(-x) (exponential survival)", () => {
+    expect(upperIncompleteGamma(1, 2)).toBeCloseTo(Math.exp(-2), 10);
+  });
+
+  it("returns 1 at x = 0", () => {
+    expect(upperIncompleteGamma(2, 0)).toBe(1);
+  });
+});
+
+// ── scanPoints1D / scanPoints2D (regression: steps=1 produced NaN) ──
+
+describe("scanPoints1D", () => {
+  it("steps=1 returns a single finite endpoint, never NaN", () => {
+    expect(scanPoints1D(-2, 2, 1)).toEqual([-2]);
+    expect(scanPoints1D(-2, 2, 1).every(Number.isFinite)).toBe(true);
+  });
+
+  it("produces evenly spaced points including both endpoints", () => {
+    expect(scanPoints1D(0, 1, 5)).toEqual([0, 0.25, 0.5, 0.75, 1]);
+  });
+
+  it("never yields a NaN for any reasonable steps value", () => {
+    for (const steps of [1, 2, 3, 10, 50]) {
+      expect(scanPoints1D(-1, 1, steps).every(Number.isFinite)).toBe(true);
+    }
+  });
+});
+
+describe("scanPoints2D", () => {
+  it("produces a full grid carrying (i, j) indices", () => {
+    const pts = scanPoints2D(0, 1, 2, 0, 1, 3);
+    expect(pts).toHaveLength(6);
+    expect(pts[0]).toEqual({ i: 0, j: 0, val1: 0, val2: 0 });
+    expect(pts.every((p) => Number.isFinite(p.val1) && Number.isFinite(p.val2))).toBe(true);
+  });
+
+  it("steps=1 on an axis collapses it to one finite value (no NaN)", () => {
+    const pts = scanPoints2D(-1, 1, 1, -1, 1, 1);
+    expect(pts).toHaveLength(1);
+    expect(pts[0]).toEqual({ i: 0, j: 0, val1: -1, val2: -1 });
+  });
+});
+
+describe("ALLOWED_SCAN_PARAMS", () => {
+  it("includes the kappa couplings and excludes junk", () => {
+    expect(ALLOWED_SCAN_PARAMS.has("CV")).toBe(true);
+    expect(ALLOWED_SCAN_PARAMS.has("Ct")).toBe(true);
+    expect(ALLOWED_SCAN_PARAMS.has("BRinv")).toBe(true);
+    expect(ALLOWED_SCAN_PARAMS.has("notacoupling")).toBe(false);
+  });
+});
+
+// ── Lilith output / version parsers ──────────────────────
+
+describe("parseLilithLikelihood", () => {
+  it("parses a plain decimal value", () => {
+    expect(parseLilithLikelihood("-2log(likelihood) = 83.421")).toBe(83.421);
+  });
+
+  it("parses scientific notation (old [\\d.]+ pattern mis-parsed this)", () => {
+    expect(parseLilithLikelihood("-2log(likelihood) = 1.5e-05")).toBeCloseTo(1.5e-5, 12);
+  });
+
+  it("parses a negative value", () => {
+    expect(parseLilithLikelihood("-2log(likelihood) = -0.5")).toBe(-0.5);
+  });
+
+  it("returns null when the line is absent (e.g. silent mode)", () => {
+    expect(parseLilithLikelihood("no likelihood here")).toBeNull();
+  });
+});
+
+describe("parseLilithNdf", () => {
+  it("parses the Ndof integer", () => {
+    expect(parseLilithNdf("(35 files, Ndof = 83)")).toBe(83);
+  });
+  it("returns null when absent", () => {
+    expect(parseLilithNdf("nothing")).toBeNull();
+  });
+});
+
+describe("parseLilithDbVersion", () => {
+  it("keeps a non-numeric suffix like 'dev' (old [\\d.]+ truncated it)", () => {
+    expect(parseLilithDbVersion("database version 20.11dev")).toBe("20.11dev");
+  });
+  it("returns 'unknown' when absent", () => {
+    expect(parseLilithDbVersion("nothing")).toBe("unknown");
+  });
+});
+
+describe("parseDbVersionFile", () => {
+  it("returns the version token, not the comment line", () => {
+    expect(parseDbVersionFile("# experimental database version number; do not modify\n20.11dev")).toBe("20.11dev");
+  });
+  it("ignores a leading comment and CRLF line endings", () => {
+    expect(parseDbVersionFile("# c\r\n20.11dev\r\n")).toBe("20.11dev");
+  });
+  it("returns 'unknown' for empty or comment-only content", () => {
+    expect(parseDbVersionFile("# only a comment\n")).toBe("unknown");
+    expect(parseDbVersionFile("")).toBe("unknown");
+  });
+});
+
+// ── compute2HDMCouplings cos(beta-alpha) ─────────────────
+
+describe("compute2HDMCouplings cosBetaMinusAlpha", () => {
+  it("returns the clamped cos(beta-alpha) alongside the couplings", () => {
+    const r = compute2HDMCouplings("II", 5, 0.5);
+    expect(r.cosBetaMinusAlpha).toBeCloseTo(Math.sqrt(1 - 0.25), 12);
+  });
+
+  it("is exactly 0 (never NaN) at the |sin(beta-alpha)| = 1 boundary", () => {
+    expect(compute2HDMCouplings("I", 2, 1).cosBetaMinusAlpha).toBe(0);
+    expect(compute2HDMCouplings("I", 2, -1).cosBetaMinusAlpha).toBe(0);
   });
 });
 
