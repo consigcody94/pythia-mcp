@@ -15,8 +15,8 @@
 
 **Constrain beyond-Standard-Model physics from LHC Higgs measurements, directly from Claude.**
 
-Pythia wraps the [Lilith](https://github.com/sabinekraml/Lilith-2) library as an MCP server,<br/>
-giving AI assistants access to 24 particle physics analysis tools.
+Pythia wraps the [Lilith](https://github.com/sabinekraml/Lilith-2) library as an MCP control center,<br/>
+giving AI assistants one explainable surface for Higgs likelihoods, data provenance, and upstream status.
 
 <br/>
 
@@ -46,6 +46,17 @@ Pythia bridges this frontier physics with conversational AI. Instead of manually
 > *"What constraints does LHC data place on a Type-II two-Higgs-doublet model with tan(beta) = 2?"*
 
 Under the hood, Pythia generates validated XML input, invokes Lilith's likelihood engine against the full ATLAS + CMS dataset, and returns structured results, all through the [Model Context Protocol](https://modelcontextprotocol.io).
+
+## ✦ Lilith Immaculate
+
+Pythia is designed for AI systems like Claude, Codex, and other MCP clients. The **Lilith Immaculate** layer keeps the published Lilith physics contract intact while making the surrounding system faster and easier for an agent to operate:
+
+- `get_control_center_status` exposes health, capabilities, engine/database versions, data counts, worker configuration, and the AI workflow in one response.
+- `check_upstream_status` checks the official Lilith-2, Run-2 database, and SModelS documentation repositories without mutating local data.
+- Likelihood calls use a small persistent Python worker pool. The database is parsed once per worker instead of once per request, and scan points avoid temporary XML files and process startup overhead.
+- The bundled measurements remain curated and reproducible. New or ingested measurements go to the user data directory with provenance instead of silently overwriting the physics database.
+
+The rewrite boundary is deliberate: a fresh Rust likelihood implementation would need to reproduce asymmetric, variable-Gaussian, generalized-Poisson, and correlated N-dimensional fits exactly before it could be trusted for research. Immaculate therefore modernizes the control plane and hot execution path first, while retaining Lilith as the validated reference engine.
 
 <br/>
 
@@ -123,7 +134,14 @@ You should see a `-2log(likelihood)` value printed to stdout.
 
 ## Tools
 
-Pythia exposes **24 tools** organized into five categories.
+Pythia exposes **26 tools** organized into six categories.
+
+### AI Control Center
+
+| Tool | Description |
+|:--|:--|
+| `get_control_center_status` | One-call health, capabilities, versions, data counts, worker pool, and AI workflow |
+| `check_upstream_status` | Read-only status check for official Lilith and SModelS upstream repositories |
 
 ### Core Analysis
 
@@ -249,12 +267,16 @@ The kappa-framework parameterizes deviations from SM Higgs couplings as multipli
 pythia-mcp/
 ├── src/
 │   ├── index.ts           # MCP server, request handlers, tool dispatch
+│   ├── control-center.ts  # AI-facing capabilities, provenance, and source catalog
+│   ├── lilith-worker.ts   # Persistent pooled worker client for fast likelihood calls
 │   ├── utils.ts           # Validation, XML generation, physics models
 │   ├── ingest.ts          # Data ingestion: HEPData -> Lilith <expmu>, parser, builder
-│   ├── utils.test.ts      # Unit tests (116 tests via Vitest)
-│   └── ingest.test.ts     # Ingestion tests (16 tests; round-trips all 87 real files)
+│   ├── control-center.test.ts # Control-plane contract tests
+│   ├── utils.test.ts      # Utility and physics-model tests
+│   └── ingest.test.ts     # Ingestion tests; round-trips the bundled database
 ├── lilith/                # Bundled Lilith-2 library
 │   ├── run_lilith.py      # CLI entry point
+│   ├── pythia_worker.py   # JSON-lines persistent worker used by Immaculate
 │   ├── lilith/            # Core Python package
 │   │   ├── main.py        # Lilith class — likelihood engine
 │   │   └── internal/      # Couplings, BRs, likelihood computation
@@ -275,6 +297,8 @@ pythia-mcp/
 - **API safety** &mdash; HTTP requests enforce 30s timeouts, redirect depth limits, and response caching with TTL. Redirects are only followed to an allowlist of physics-data hosts over HTTPS, so an open-redirect upstream cannot be used for SSRF.
 - **XXE prevention** &mdash; XML submitted to `validate_input` is rejected if it declares a DOCTYPE or ENTITY, since the underlying parser resolves entities.
 - **Subprocess limits** &mdash; Python process output is capped at 1 MB to prevent memory exhaustion.
+- **Worker isolation** &mdash; persistent workers use a bounded JSON-lines protocol, a 60-second request timeout, and a configurable pool of 1&ndash;8 processes.
+- **Upstream safety** &mdash; GitHub status checks are read-only and redirects remain restricted to HTTPS allowlisted hosts.
 
 <br/>
 
@@ -294,6 +318,7 @@ npm run dev          # Run with ts-node (development)
 |:--|:--|:--|
 | `LILITH_DIR` | `../lilith` (relative to dist) | Path to Lilith installation |
 | `PYTHON_CMD` | `python3` | Python interpreter command |
+| `PYTHIA_WORKERS` | `2` | Number of persistent Lilith workers (1&ndash;8) |
 | `LILITH_USER_DATA_DIR` | `<LILITH_DIR>/data/user` | Where ingested `<expmu>` files are written |
 
 <br/>
@@ -353,6 +378,8 @@ For [**Sabine Kraml**](https://github.com/sabinekraml) ([@sabinekraml](https://g
 | Resource | Link |
 |:--|:--|
 | Lilith-2 source | [github.com/sabinekraml/Lilith-2](https://github.com/sabinekraml/Lilith-2) |
+| Lilith Run-2 database work | [github.com/sabinekraml/Lilith-Run2database](https://github.com/sabinekraml/Lilith-Run2database) |
+| SModelS documentation | [smodels.github.io](https://smodels.github.io/) |
 | Lilith paper | [arXiv:1502.04138](https://arxiv.org/abs/1502.04138) |
 | HEPData | [hepdata.net](https://www.hepdata.net) |
 | CERN Open Data | [opendata.cern.ch](https://opendata.cern.ch) |

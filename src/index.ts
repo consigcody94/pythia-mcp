@@ -66,6 +66,13 @@ import {
   classifyResponse,
 } from "./ingest.js";
 import type { HEPDataTable, Measurement1D } from "./ingest.js";
+import {
+  CONTROL_SOURCES,
+  PYTHIA_VERSION,
+  buildControlCenterStatus,
+  selectControlSources,
+} from "./control-center.js";
+import { LilithWorkerPool, type LilithWorkerResult } from "./lilith-worker.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -89,6 +96,14 @@ const HTTP_TIMEOUT_MS = 30000;
 // Maximum concurrent operations for scans
 const MAX_CONCURRENT_SCANS = 10;
 
+// A small persistent pool removes Python import/database parsing from every
+// likelihood call while still allowing independent scan points to run in
+// parallel. Override for memory-constrained deployments.
+const WORKER_COUNT = Math.min(
+  Math.max(Number.parseInt(process.env.PYTHIA_WORKERS || "2", 10) || 2, 1),
+  8,
+);
+
 // Maximum HTTP redirect depth
 const MAX_REDIRECTS = 5;
 
@@ -100,6 +115,7 @@ const ALLOWED_FETCH_HOSTS = new Set([
   "hepdata.net",
   "opendata.cern.ch",
   "inspirehep.net",
+  "api.github.com",
 ]);
 
 // Maximum subprocess output size (1MB)
@@ -220,13 +236,25 @@ async function runLilith(args: string[], input?: string): Promise<string> {
   });
 }
 
+/**
+ * Fast path for likelihood calls. The worker keeps the parsed XML database
+ * and Python imports warm, then returns structured data without temp files or
+ * human-oriented CLI output. The legacy CLI path remains available for file
+ * output and input-validation operations.
+ */
+async function runLikelihood(inputXml: string, expInput = "data/latest.list"): Promise<LilithWorkerResult> {
+  return lilithWorkers.request(inputXml, expInput);
+}
+
 
 // Browser-like UA + JSON Accept. Several physics data portals (notably HEPData,
 // which sits behind Cloudflare) reject requests with no User-Agent.
-const USER_AGENT = "pythia-mcp/1.1.1 (+https://github.com/consigcody94/pythia-mcp)";
+const USER_AGENT = `pythia-mcp/${PYTHIA_VERSION} (+https://github.com/consigcody94/pythia-mcp)`;
 const INSPIRE_API = "https://inspirehep.net/api";
 // Cap decoded response size (HEPData records can be large but not unbounded).
 const MAX_HTTP_BYTES = 16 * 1024 * 1024;
+
+const lilithWorkers = new LilithWorkerPool(LILITH_DIR, PYTHON_CMD, WORKER_COUNT);
 
 /**
  * Shared JSON fetch: sets headers, follows redirects, transparently decompresses
@@ -341,6 +369,123 @@ async function fetchInspire(endpoint: string): Promise<unknown> {
   return httpGetJson(`${INSPIRE_API}${endpoint}`, { cacheKey: `inspire:${endpoint}`, label: "INSPIRE-HEP API" });
 }
 
+async function countFilesRecursively(directory: string, suffix?: string): Promise<number> {
+  let count = 0;
+  let entries;
+  try {
+    entries = await fs.readdir(directory, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const entry of entries) {
+    const child = path.join(directory, entry.name);
+    if (entry.isDirectory()) count += await countFilesRecursively(child, suffix);
+    else if (!suffix || entry.name.endsWith(suffix)) count += 1;
+  }
+  return count;
+}
+
+async function readLilithVersion(): Promise<string> {
+  try {
+    const versionSource = await fs.readFile(path.join(LILITH_DIR, "lilith", "version.py"), "utf-8");
+    return versionSource.match(/__version__\s*=\s*["']([^"']+)["']/)?.[1] || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+async function readDatabaseVersion(): Promise<string> {
+  try {
+    return parseDbVersionFile(await fs.readFile(path.join(DATA_DIR, "version"), "utf-8"));
+  } catch {
+    return "unknown";
+  }
+}
+
+async function readActiveListCount(): Promise<number> {
+  try {
+    const content = await fs.readFile(path.join(DATA_DIR, "latest.list"), "utf-8");
+    return content.split("\n").filter((line) => line.trim() && !line.trim().startsWith("#")).length;
+  } catch {
+    return 0;
+  }
+}
+
+async function getControlCenterStatus() {
+  const checks = [
+    {
+      name: "lilith-directory",
+      ok: existsSync(LILITH_DIR),
+      detail: LILITH_DIR,
+    },
+    {
+      name: "lilith-entrypoint",
+      ok: existsSync(path.join(LILITH_DIR, "run_lilith.py")),
+      detail: path.join(LILITH_DIR, "run_lilith.py"),
+    },
+    {
+      name: "active-database-list",
+      ok: existsSync(path.join(DATA_DIR, "latest.list")),
+      detail: path.join(DATA_DIR, "latest.list"),
+    },
+    {
+      name: "persistent-worker",
+      ok: existsSync(path.join(LILITH_DIR, "pythia_worker.py")),
+      detail: `${WORKER_COUNT} pooled worker(s), started lazily`,
+    },
+  ];
+  const [lilithVersion, databaseVersion, datasetCount, activeListCount] = await Promise.all([
+    readLilithVersion(),
+    readDatabaseVersion(),
+    countFilesRecursively(DATA_DIR, ".xml"),
+    readActiveListCount(),
+  ]);
+  return buildControlCenterStatus({
+    lilithDirectory: LILITH_DIR,
+    dataDirectory: DATA_DIR,
+    userDataDirectory: USER_DATA_DIR,
+    pythonCommand: PYTHON_CMD,
+    lilithVersion,
+    databaseVersion,
+    datasetCount,
+    activeListCount,
+    workerCount: lilithWorkers.size,
+    workerMode: "persistent-pooled",
+    checks,
+  });
+}
+
+interface GitHubCommit {
+  sha?: string;
+  html_url?: string;
+  commit?: { message?: string; author?: { date?: string } };
+}
+
+async function fetchUpstreamStatus(sourceId: string) {
+  const source = CONTROL_SOURCES.find((item) => item.id === sourceId);
+  if (!source) throw new Error(`Unknown source "${sourceId}"`);
+  const match = source.repository.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/);
+  if (!match) throw new Error(`Source repository is not a GitHub URL: ${source.repository}`);
+  const endpoint = `/repos/${match[1]}/${match[2]}/commits?per_page=1`;
+  const response = await httpGetJson(`https://api.github.com${endpoint}`, {
+    cacheKey: `github:${source.id}:head`,
+    label: `${source.name} GitHub API`,
+  });
+  const commit = Array.isArray(response) ? response[0] as GitHubCommit | undefined : undefined;
+  return {
+    ...source,
+    latest: commit
+      ? {
+          sha: commit.sha,
+          url: commit.html_url,
+          message: commit.commit?.message?.split("\n")[0],
+          date: commit.commit?.author?.date,
+        }
+      : null,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
 
 /**
  * Create the MCP server
@@ -348,7 +493,7 @@ async function fetchInspire(endpoint: string): Promise<unknown> {
 const server = new Server(
   {
     name: "pythia-mcp",
-    version: "1.1.1",
+    version: PYTHIA_VERSION,
   },
   {
     capabilities: {
@@ -364,6 +509,30 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
+      // AI control-plane tools
+      {
+        name: "get_control_center_status",
+        description: "Return Pythia's machine-readable health, capabilities, Lilith engine version, database provenance, worker pool, and official upstream roles. Call this first when planning an analysis.",
+        inputSchema: {
+          type: "object",
+          properties: {}
+        }
+      },
+      {
+        name: "check_upstream_status",
+        description: "Check the latest official GitHub revision for Lilith-2, the Lilith Run-2 database, or the SModelS documentation source. This is read-only and never mutates the bundled database.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            source: {
+              type: "string",
+              enum: ["all", "lilith", "run2database", "smodels"],
+              description: "Upstream source to check (default: all)"
+            }
+          }
+        }
+      },
+
       // Core Lilith Analysis Tools
       {
         name: "compute_likelihood",
@@ -925,6 +1094,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
   const resources = [];
 
+  resources.push({
+    uri: "pythia://control-center",
+    name: "Pythia Control Center",
+    description: "Machine-readable Pythia health, capabilities, engine, data, and AI workflow metadata",
+    mimeType: "application/json"
+  });
+  resources.push({
+    uri: "pythia://sources",
+    name: "Official Upstream Sources",
+    description: "Lilith-2, Lilith Run-2 database, and SModelS source roles and provenance",
+    mimeType: "application/json"
+  });
+
   // Add experimental data lists as resources
   const dataLists = ["latest.list", "latestRun2.list", "finalRun1.list"];
   for (const list of dataLists) {
@@ -953,6 +1135,18 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const uri = request.params.uri;
 
+  if (uri === "pythia://control-center") {
+    return {
+      contents: [{ uri, mimeType: "application/json", text: JSON.stringify(await getControlCenterStatus(), null, 2) }]
+    };
+  }
+
+  if (uri === "pythia://sources") {
+    return {
+      contents: [{ uri, mimeType: "application/json", text: JSON.stringify(CONTROL_SOURCES, null, 2) }]
+    };
+  }
+
   if (uri.startsWith("lilith://data/")) {
     const filename = uri.replace("lilith://data/", "");
 
@@ -970,24 +1164,11 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   }
 
   if (uri === "lilith://version") {
-    const versionFile = path.join(DATA_DIR, "version");
-    let dbVersion = "unknown";
-    try {
-      const content = await fs.readFile(versionFile, "utf-8");
-      dbVersion = parseDbVersionFile(content);
-    } catch {
-      // File doesn't exist, use default
-    }
-
     return {
       contents: [{
         uri,
         mimeType: "application/json",
-        text: JSON.stringify({
-          lilithVersion: "2.1",
-          databaseVersion: dbVersion,
-          pythiaMCPVersion: "1.1.1"
-        }, null, 2)
+        text: JSON.stringify(await getControlCenterStatus(), null, 2)
       }]
     };
   }
@@ -1023,6 +1204,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
+      case "get_control_center_status": {
+        return {
+          content: [{ type: "text", text: JSON.stringify(await getControlCenterStatus(), null, 2) }]
+        };
+      }
+
+      case "check_upstream_status": {
+        const params = args as { source?: string };
+        const sources = selectControlSources(params?.source);
+        const results = await Promise.allSettled(sources.map((source) => fetchUpstreamStatus(source.id)));
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              checkedAt: new Date().toISOString(),
+              results: results.map((result, index) => result.status === "fulfilled"
+                ? result.value
+                : { ...sources[index], error: result.reason instanceof Error ? result.reason.message : "upstream check failed" }),
+              policy: "Read-only status checks; Pythia never overwrites curated bundled data automatically.",
+            }, null, 2)
+          }]
+        };
+      }
+
       case "compute_likelihood": {
         const params = args as unknown as CouplingParams & SignalStrengthParams & { mode: string; expInput?: string };
         let xmlInput: string;
@@ -1035,45 +1240,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid mode. Use 'couplings' or 'signalstrengths'");
         }
 
-        // Use secure random temp file
-        const tmpFile = generateTempFilename("input");
-        await fs.writeFile(tmpFile, xmlInput);
-
-        try {
-          // Validate and whitelist experimental input file
-          const expInput = params.expInput || "data/latest.list";
-          if (!ALLOWED_EXP_INPUT_FILES.has(expInput)) {
-            throw new Error(`Invalid experimental input file. Allowed: ${[...ALLOWED_EXP_INPUT_FILES].join(", ")}`);
-          }
-
-          const output = await runLilith([
-            "run_lilith.py",
-            tmpFile,
-            expInput,
-            "-v"
-          ]);
-
-          // Parse output
-          const likelihood = parseLilithLikelihood(output);
-
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                likelihood,
-                ndf: parseLilithNdf(output),
-                dbVersion: parseLilithDbVersion(output),
-                rawOutput: output,
-                inputXML: xmlInput,
-                ...(likelihood === null
-                  ? { warning: "Could not parse -2log(likelihood) from Lilith output; see rawOutput." }
-                  : {})
-              }, null, 2)
-            }]
-          };
-        } finally {
-          await cleanupTempFile(tmpFile);
+        // Validate and whitelist experimental input file.
+        const expInput = params.expInput || "data/latest.list";
+        if (!ALLOWED_EXP_INPUT_FILES.has(expInput)) {
+          throw new Error(`Invalid experimental input file. Allowed: ${[...ALLOWED_EXP_INPUT_FILES].join(", ")}`);
         }
+
+        const result = await runLikelihood(xmlInput, expInput);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              ...result,
+              inputXML: xmlInput,
+              execution: "persistent-worker-pool",
+            }, null, 2)
+          }]
+        };
       }
 
       case "compute_sm_likelihood": {
@@ -1085,38 +1268,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           BRundet: 0.0
         });
 
-        const tmpFile = generateTempFilename("sm_input");
-        await fs.writeFile(tmpFile, xmlInput);
-
-        try {
-          const expInput = params?.expInput || "data/latest.list";
-          if (!ALLOWED_EXP_INPUT_FILES.has(expInput)) {
-            throw new Error(`Invalid experimental input file. Allowed: ${[...ALLOWED_EXP_INPUT_FILES].join(", ")}`);
-          }
-
-          const output = await runLilith([
-            "run_lilith.py",
-            tmpFile,
-            expInput
-          ]);
-
-          const smLikelihood = parseLilithLikelihood(output);
-
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                smLikelihood,
-                description: "Standard Model reference likelihood (-2 log L)",
-                ...(smLikelihood === null
-                  ? { warning: "Could not parse -2log(likelihood) from Lilith output.", rawOutput: output }
-                  : {})
-              }, null, 2)
-            }]
-          };
-        } finally {
-          await cleanupTempFile(tmpFile);
+        const expInput = params?.expInput || "data/latest.list";
+        if (!ALLOWED_EXP_INPUT_FILES.has(expInput)) {
+          throw new Error(`Invalid experimental input file. Allowed: ${[...ALLOWED_EXP_INPUT_FILES].join(", ")}`);
         }
+        const result = await runLikelihood(xmlInput, expInput);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              smLikelihood: result.likelihood,
+              ndf: result.ndf,
+              dbVersion: result.dbVersion,
+              durationMs: result.durationMs,
+              description: "Standard Model reference likelihood (-2 log L)",
+              execution: "persistent-worker-pool",
+            }, null, 2)
+          }]
+        };
       }
 
       case "list_experimental_data": {
@@ -1376,26 +1545,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "get_version_info": {
-        const versionFile = path.join(DATA_DIR, "version");
-        let dbVersion = "unknown";
-        try {
-          const content = await fs.readFile(versionFile, "utf-8");
-          dbVersion = parseDbVersionFile(content);
-        } catch {
-          // File doesn't exist, use default
-        }
-
         return {
           content: [{
-            type: "text",
-            text: JSON.stringify({
-              pythiaMCPVersion: "1.1.1",
-              lilithVersion: "2.1",
-              databaseVersion: dbVersion,
-              pythonCommand: PYTHON_CMD,
-              lilithDirectory: LILITH_DIR,
-              dataDirectory: DATA_DIR
-            }, null, 2)
+            type: "text", text: JSON.stringify(await getControlCenterStatus(), null, 2)
           }]
         };
       }
@@ -1434,18 +1586,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           async (point) => {
             const couplings = { ...fixedParams, [param.name]: point.value };
             const xmlInput = generateReducedCouplingsXML(couplings);
-            const tmpFile = generateTempFilename(`scan1d_${point.index}`);
-
-            await fs.writeFile(tmpFile, xmlInput);
             try {
-              // -v (not -s): silent mode suppresses the likelihood line entirely.
-              const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-v"]);
-              const likelihood = parseLilithLikelihood(output);
-              return likelihood === null ? null : { value: point.value, likelihood };
+              const result = await runLikelihood(xmlInput, "data/latest.list");
+              return { value: point.value, likelihood: result.likelihood };
             } catch {
               return null;
-            } finally {
-              await cleanupTempFile(tmpFile);
             }
           }
         );
@@ -1526,18 +1671,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             };
 
             const xmlInput = generateReducedCouplingsXML(couplings);
-            const tmpFile = generateTempFilename(`scan2d_${point.i}_${point.j}`);
-
-            await fs.writeFile(tmpFile, xmlInput);
             try {
-              // -v (not -s): silent mode suppresses the likelihood line entirely.
-              const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-v"]);
-              const likelihood = parseLilithLikelihood(output);
-              return likelihood === null ? null : { x: point.val1, y: point.val2, likelihood };
+              const result = await runLikelihood(xmlInput, "data/latest.list");
+              return { x: point.val1, y: point.val2, likelihood: result.likelihood };
             } catch {
               return null;
-            } finally {
-              await cleanupTempFile(tmpFile);
             }
           }
         );
@@ -1602,36 +1740,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           Cc: Ct
         });
 
-        const tmpFile = generateTempFilename("2hdm");
-        await fs.writeFile(tmpFile, xmlInput);
-
-        try {
-          const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-v"]);
-
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                model: `2HDM Type-${params.type}`,
-                parameters: {
-                  tanBeta,
-                  sinBetaMinusAlpha,
-                  cosBetaMinusAlpha
-                },
-                note: "cos(beta - alpha) is taken as the non-negative root; the wrong-sign coupling region (cos(beta - alpha) < 0) is not explored by this tool.",
-                reducedCouplings: {
-                  CV,
-                  Ct,
-                  Cb,
-                  Ctau
-                },
-                likelihood: parseLilithLikelihood(output)
-              }, null, 2)
-            }]
-          };
-        } finally {
-          await cleanupTempFile(tmpFile);
-        }
+        const result = await runLikelihood(xmlInput, "data/latest.list");
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              model: `2HDM Type-${params.type}`,
+              parameters: {
+                tanBeta,
+                sinBetaMinusAlpha,
+                cosBetaMinusAlpha
+              },
+              note: "cos(beta - alpha) is taken as the non-negative root; the wrong-sign coupling region (cos(beta - alpha) < 0) is not explored by this tool.",
+              reducedCouplings: {
+                CV,
+                Ct,
+                Cb,
+                Ctau
+              },
+              likelihood: result.likelihood,
+              ndf: result.ndf,
+              dbVersion: result.dbVersion,
+              durationMs: result.durationMs,
+            }, null, 2)
+          }]
+        };
       }
 
       case "analyze_singlet_extension": {
@@ -1654,32 +1787,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           BRinv: Number.isNaN(BRinv) ? 0 : BRinv
         });
 
-        const tmpFile = generateTempFilename("singlet");
-        await fs.writeFile(tmpFile, xmlInput);
-
-        try {
-          const output = await runLilith(["run_lilith.py", tmpFile, "data/latest.list", "-v"]);
-
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                model: "Higgs Singlet Extension",
-                parameters: {
-                  mixingAngle,
-                  mixingAngleDegrees: mixingAngle * 180 / Math.PI,
-                  BRinv: Number.isNaN(BRinv) ? 0 : BRinv
-                },
-                reducedCouplings: {
-                  C: cosMix // Universal scaling
-                },
-                likelihood: parseLilithLikelihood(output)
-              }, null, 2)
-            }]
-          };
-        } finally {
-          await cleanupTempFile(tmpFile);
-        }
+        const result = await runLikelihood(xmlInput, "data/latest.list");
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              model: "Higgs Singlet Extension",
+              parameters: {
+                mixingAngle,
+                mixingAngleDegrees: mixingAngle * 180 / Math.PI,
+                BRinv: Number.isNaN(BRinv) ? 0 : BRinv
+              },
+              reducedCouplings: {
+                C: cosMix // Universal scaling
+              },
+              likelihood: result.likelihood,
+              ndf: result.ndf,
+              dbVersion: result.dbVersion,
+              durationMs: result.durationMs,
+            }, null, 2)
+          }]
+        };
       }
 
       case "compute_pvalue": {
