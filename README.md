@@ -47,6 +47,27 @@ Pythia bridges this frontier physics with conversational AI. Instead of manually
 
 Under the hood, Pythia generates validated XML input, invokes Lilith's likelihood engine against the full ATLAS + CMS dataset, and returns structured results, all through the [Model Context Protocol](https://modelcontextprotocol.io).
 
+---
+
+## Interactive 3D Collider Digital Twin & Engineering Blueprints
+
+> **[Launch Interactive 3D WebGL Digital Twin (LHC Detector & Event Display)](3d_collider_model.html)**
+> *(Interactive Three.js digital twin featuring cutaway 4-layer particle detector, Golden Channel H -> ZZ* -> 4μ event with reconstructed invariant mass m_4μ = 125.09 GeV, Diphoton H -> γγ, VBF forward jet tags, and 3D Lilith likelihood surface).*
+
+### Sheet 1: Higgs Boson Production & Decay Phenomenology Blueprint
+Full vector Feynman diagrams for all 5 LHC production modes (ggF, VBF, WH, ZH, ttH), precision decay branching ratios, SMEFT dimension-6 operators, and electroweak coupling modifiers (κ-framework).
+
+[![Higgs Feynman Phenomenology Blueprint](results/higgs_feynman_phenomenology_blueprint.png)](results/higgs_feynman_phenomenology_blueprint.svg)
+*Figure 1: Standard ISO Drawing PYTHIA-HEP-DWG-001 (Rev 2.1). Vector SVG available at [`results/higgs_feynman_phenomenology_blueprint.svg`](results/higgs_feynman_phenomenology_blueprint.svg).*
+
+### Sheet 2: Lilith-2 Experimental Likelihood & BSM Constraints Blueprint
+Signal strength likelihood contours (μ_ggF+ttH vs μ_VBF+VH) with 68% and 95% CL ellipses from ATLAS + CMS Run 2/3 datasets, Two-Higgs-Doublet Model (2HDM) alignment limit constraints, and profile likelihood evaluation architecture.
+
+[![Lilith Likelihood Constraints Blueprint](results/lilith_likelihood_constraints_blueprint.png)](results/lilith_likelihood_constraints_blueprint.svg)
+*Figure 2: Standard ISO Drawing PYTHIA-BSM-DWG-002 (Rev 1.9). Vector SVG available at [`results/lilith_likelihood_constraints_blueprint.svg`](results/lilith_likelihood_constraints_blueprint.svg).*
+
+---
+
 <br/>
 
 <div align="center">
