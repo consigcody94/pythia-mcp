@@ -51,6 +51,14 @@ Under the hood, Pythia generates validated XML input, invokes Lilith's likelihoo
 
 ## Interactive 3D Collider Digital Twin & Engineering Blueprints
 
+### Physical Explainer: The Pythia LHC Higgs Calorimeter Bench
+An interactive isometric precision instrument built with [wheresryan22/anatomy](https://github.com/wheresryan22/anatomy) embodying Higgs decay branching ratio calorimetry:
+
+> **[Launch Interactive Physical Explainer](https://consigcody94.github.io/scientific-anatomy/figures/pythia-collider/pythia-collider.html)** · *(Local: [`docs/figures/pythia-collider.html`](docs/figures/pythia-collider.html))*
+
+[![Pythia LHC Higgs Calorimeter Bench](docs/figures/pythia-collider-dark.png)](https://consigcody94.github.io/scientific-anatomy/figures/pythia-collider/pythia-collider.html)
+*Figure: The Pythia LHC Higgs Calorimeter Bench. An optical decay carriage stepping six Higgs decay channels beneath a quadrupole collision chamber, dual coupling verniers (CV, CF), and a signal strength dial. Feeler plunger measures branching fraction step height while dials register gauge boson and fermion reduced couplings.*
+
 > **[Launch Interactive 3D WebGL Digital Twin (LHC Detector & Event Display)](3d_collider_model.html)**
 > *(Interactive Three.js digital twin featuring cutaway 4-layer particle detector, Golden Channel H -> ZZ* -> 4μ event with reconstructed invariant mass m_4μ = 125.09 GeV, Diphoton H -> γγ, VBF forward jet tags, and 3D Lilith likelihood surface).*
 
